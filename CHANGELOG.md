@@ -17,3 +17,7 @@
 - **F5 Data Loss**: Resolved critical issue where page refresh cleared analysis results and file lists.
 - **Navigation State**: Fixed issue where switching sidebar items caused analysis results to disappear.
 - **AI Loop**: Prevented AI from repetitively talking about "Mock Mode" once connected to Ollama.
+- **Clear Cache Button**: Replaced native `confirm()` with a custom React double-click state (`isConfirmingClear`) in `ComparativeDashboard` to bypass browser dialog blockers.
+- **Backend API Error (JSON Parse)**: Fixed crash `Xảy ra lỗi trong quá trình phân tích` by adding a regex JSON extractor to prevent hallucinated strings from breaking `JSON.parse`.
+- **Backend Crash (pdf-parse)**: Fixed `TypeError: pdf is not a function` during backend startup.
+- **LLM Hallucination**: Enforced `temperature: 0` in Qwen 0.5b model and tightened prompts so the AI returns N/A instead of inventing carrier names or prices.
