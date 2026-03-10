@@ -2,7 +2,7 @@ import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as mammoth from 'mammoth';
-const pdf = require('pdf-parse');
+const { PDFParse } = require('pdf-parse');
 
 @Injectable()
 export class SpecialTermsService implements OnModuleInit {
@@ -12,6 +12,15 @@ export class SpecialTermsService implements OnModuleInit {
 
     async onModuleInit() {
         await this.loadSpecialTerms();
+    }
+
+    private async parsePdfText(buffer: Buffer) {
+        const parser = new PDFParse({ data: buffer });
+        try {
+            return await parser.getText();
+        } finally {
+            await parser.destroy();
+        }
     }
 
     async loadSpecialTerms() {
@@ -35,7 +44,7 @@ export class SpecialTermsService implements OnModuleInit {
                     combinedContent += `\n--- SOURCE: ${file} ---\n${result.value}`;
                 } else if (ext === '.pdf') {
                     const buffer = await fs.readFile(filePath);
-                    const data = await pdf(buffer);
+                    const data = await this.parsePdfText(buffer);
                     combinedContent += `\n--- SOURCE: ${file} ---\n${data.text}`;
                 } else if (ext === '.md' || ext === '.txt') {
                     const content = await fs.readFile(filePath, 'utf-8');
