@@ -28,6 +28,7 @@ const ComparativeDashboard: React.FC = () => {
         return [];
     });
     const [errorMsg, setErrorMsg] = useState('');
+    const [isConfirmingClear, setIsConfirmingClear] = useState(false);
 
     // AI Chat State
     const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'ai', content: string }[]>(() => {
@@ -205,18 +206,27 @@ const ComparativeDashboard: React.FC = () => {
     };
 
     const handleClearData = () => {
-        if (confirm('Bạn có chắc chắn muốn xóa toàn bộ kết quả phân tích cũ?')) {
-            localStorage.removeItem('comparative_result');
-            localStorage.removeItem('comparative_files');
-            localStorage.removeItem('comparative_chat');
-            setResult(null);
-            setFiles([]);
-            setSavedFileNames([]);
-            setChatMessages([{ role: 'ai', content: 'Xin chào! Tôi là Logistics Co-Pilot. Bạn cần hỏi gì về báo giá?' }]);
-            setUploadProgress(0);
-            setAiProgress(0);
-            setAiTime(0);
+        if (!isConfirmingClear) {
+            setIsConfirmingClear(true);
+            setTimeout(() => {
+                setIsConfirmingClear(false);
+            }, 3000); // Tự hủy trạng thái xác nhận sau 3 giây
+            return;
         }
+
+        console.log('[Dashboard] Clearing localStorage and state...');
+        localStorage.removeItem('comparative_result');
+        localStorage.removeItem('comparative_files');
+        localStorage.removeItem('comparative_chat');
+        setResult(null);
+        setFiles([]);
+        setSavedFileNames([]);
+        setChatMessages([{ role: 'ai', content: 'Xin chào! Tôi là Logistics Co-Pilot. Bạn cần hỏi gì về báo giá?' }]);
+        setUploadProgress(0);
+        setAiProgress(0);
+        setAiTime(0);
+        setIsConfirmingClear(false);
+        console.log('[Dashboard] Clear complete');
     };
 
     const handleCancel = () => {
@@ -333,10 +343,25 @@ const ComparativeDashboard: React.FC = () => {
                             {result && (
                                 <button
                                     onClick={handleClearData}
-                                    style={{ padding: '0.5rem', width: '100%', background: 'transparent', color: 'var(--text-dim)', border: '1px solid var(--brand-border)', borderRadius: '0.5rem', fontSize: '0.8125rem', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
+                                    style={{
+                                        padding: '0.5rem',
+                                        width: '100%',
+                                        background: isConfirmingClear ? 'rgba(244, 63, 94, 0.1)' : 'transparent',
+                                        color: isConfirmingClear ? '#f43f5e' : 'var(--text-dim)',
+                                        border: isConfirmingClear ? '1px solid #f43f5e' : '1px solid var(--brand-border)',
+                                        borderRadius: '0.5rem',
+                                        fontSize: '0.8125rem',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '0.4rem',
+                                        fontWeight: isConfirmingClear ? 'bold' : 'normal'
+                                    }}
                                     className="hover:border-rose-500 hover:text-rose-500"
                                 >
-                                    <XCircle size={14} /> Xóa Kết quả & Cache
+                                    <XCircle size={14} /> {isConfirmingClear ? 'Nhấn lần nữa để Xóa' : 'Xóa Kết quả & Cache'}
                                 </button>
                             )}
                         </div>
