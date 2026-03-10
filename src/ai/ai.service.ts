@@ -28,6 +28,7 @@ export class AiService implements OnModuleInit {
         this.llm = new ChatOllama({
             baseUrl: this.ollamaBaseUrl,
             model: this.modelName,
+            temperature: 0, // Force strict adherence to prompts, disable hallucination
         });
 
         // Step 3: Initialize Qdrant

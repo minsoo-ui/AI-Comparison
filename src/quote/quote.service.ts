@@ -79,10 +79,10 @@ export class QuoteService {
       - Lựa chọn rẻ nhất: ${insights.cheapest_price} bởi ${insights.cheapest_carrier}
       - Tiềm năng tiết kiệm: ${insights.saving_potential}
       
-      NHIỆM VỤ:
-      1. Với MỖI carrier, hãy đưa ra 'Verdict' (Recommend / Negotiate / Avoid) dựa trên giá so với quy tắc.
-      2. Xác định các vấn đề tuân thủ (Compliance) cụ thể cho từng báo giá.
-      3. Gợi ý 3-5 'Chiến lược đàm phán' (Negotiation Strategies) có tác động cao.
+      NHIỆM VỤ CỦA BẠN LÀ PHÂN TÍCH CHÍNH XÁC DATA TRÊN, TUYỆT ĐỐI KHÔNG BỊA ĐẶT (ZERO HALLUCINATION):
+      1. Với MỖI 'carrier' có TRONG dữ liệu, hãy đưa ra 'Verdict' (Recommend / Negotiate / Avoid) dựa trên giá so với quy tắc. NẾU KHÔNG CÓ CARRIER NÀO HỢP LỆ, TRẢ VỀ MẢNG RỖNG [].
+      2. Xác định các vấn đề tuân thủ (Compliance) cụ thể cho từng báo giá đang xem xét. NẾU KHÔNG BIẾT THÌ BỎ QUA.
+      3. Gợi ý 1-3 'Chiến lược đàm phán' (Negotiation Strategies) thực tế dựa trên dữ liệu báo giá này. KHÔNG NÓI CHUNG CHUNG.
       
       YÊU CẦU QUAN TRỌNG:
       - TẤT CẢ nội dung 'reason', 'title', 'point', 'issues' PHẢI BẰNG TIẾNG VIỆT.
@@ -180,7 +180,8 @@ export class QuoteService {
         
 BẮT BUỘC:
 - NGÔN NGỮ TRẢ LỜI: LUÔN LUÔN TRẢ LỜI BẰNG TIẾNG VIỆT.
-- DỰA TRÊN DỮ LIỆU: Chỉ phân tích dựa trên dữ liệu báo giá người dùng đã học được từ file của họ.
+- DỰA TRÊN DỮ LIỆU: Chỉ phân tích dựa trên dữ liệu báo giá người dùng đã cung cấp ở bên dưới.
+- ZERO HALLUCINATION: NẾU NGƯỜI DÙNG HỎI THÔNG TIN KHÔNG CÓ TRONG DATA HOẶC FILE, HÃY TRẢ LỜI RẰNG "TÔI KHÔNG TÌM THẤY THÔNG TIN NÀY TRONG BÁO GIÁ". TUYỆT ĐỐI KHÔNG BỊA RA CÂU TRẢ LỜI HOẶC SỐ LIỆU.
 - KHÔNG đề cập đến "chế độ thử nghiệm", "mock mode", hoặc tình trạng kết nối.
 - Hãy tự tin, súc tích và đưa ra các lời khuyên thực tế.
 
