@@ -21,17 +21,35 @@ export class QuoteService {
     async compareQuotes(filePaths: string[]): Promise<any> {
         this.logger.log(`Comparing ${filePaths.length} quotes...`);
 
-        // 1. Extract raw text from all files
+        // ── STEP 1: OCR — Extract raw text from ALL files (parallel) ──
         const rawTexts = await Promise.all(
             filePaths.map(async (filePath) => {
                 const buffer = await this.uploadService.getFileContent(filePath);
                 const fileName = path.basename(filePath);
                 const text = await this.ocrService.extractText(buffer, fileName);
-                return { path: filePath, text };
+                return { path: filePath, fileName, text };
             })
         );
 
-        // 2. Extract structured JSON with Traceability for each quote
+        // ── STEP 2: Classify files ──
+        const commonTermsTexts: string[] = [];
+        const rfqTexts: string[] = [];
+        const quoteItems: typeof rawTexts = [];
+
+        for (const item of rawTexts) {
+            const lowerName = item.fileName.toLowerCase();
+            if (lowerName.includes('common') || lowerName.includes('term') || lowerName.includes('thuật ngữ')) {
+                commonTermsTexts.push(`--- Thuật ngữ từ "${item.fileName}" ---\n${item.text}`);
+            } else if (lowerName.includes('hỏi cước') || lowerName.includes('thông tin') || lowerName.includes('rfq') || lowerName.includes('request')) {
+                rfqTexts.push(`--- Yêu cầu hỏi cước từ "${item.fileName}" ---\n${item.text}`);
+            } else {
+                quoteItems.push(item);
+            }
+        }
+
+        this.logger.log(`Classified: ${commonTermsTexts.length} terms, ${rfqTexts.length} RFQ, ${quoteItems.length} quotes`);
+
+        // ── STEP 3: Per-file structured extraction (parallel, fast → stat cards) ──
         const quoteSchema = {
             carrier: 'string',
             origin: 'string',
@@ -43,93 +61,105 @@ export class QuoteService {
         };
 
         const structuredQuotes = await Promise.all(
-            rawTexts.map(async (item) => {
+            quoteItems.map(async (item) => {
                 const extraction = await this.extractService.extractData(item.text, quoteSchema);
                 return {
                     ...extraction.data,
                     traceability: extraction.traceability,
-                    sourceFile: item.path
+                    sourceFile: item.path,
                 };
             })
         );
 
-        // 3. Analytic Insights
-        const insights = this.calculateInsights(structuredQuotes);
-        if (!insights) {
-            return {
-                summary: null,
-                quotes: structuredQuotes,
-                ai_analysis: { verdicts: [], negotiation_strategies: [], compliance: [] },
-            };
-        }
+        // ── STEP 4: Calculate stat card insights from structured data ──
+        const summary = this.calculateInsights(structuredQuotes);
 
-        // 4. AI Analysis
-        const businessRules = this.specialTermsService.getTermsContent();
-        const analysisPrompt = `
-      Là một chuyên gia logistics, hãy phân tích các báo giá sau đây dựa trên quy tắc kinh doanh của chúng tôi.
-      
-      Dữ liệu báo giá (TRÍCH XUẤT TỪ FILE NGƯỜI DÙNG):
-      ${JSON.stringify(structuredQuotes, null, 2)}
-      
-      Quy tắc kinh doanh:
-      ${businessRules}
-      
-      Tóm tắt phân tích:
-      - Giá trung bình: ${insights.average_price}
-      - Lựa chọn rẻ nhất: ${insights.cheapest_price} bởi ${insights.cheapest_carrier}
-      - Tiềm năng tiết kiệm: ${insights.saving_potential}
-      
-      NHIỆM VỤ CỦA BẠN LÀ PHÂN TÍCH CHÍNH XÁC DATA TRÊN, TUYỆT ĐỐI KHÔNG BỊA ĐẶT (ZERO HALLUCINATION):
-      1. Với MỖI 'carrier' có TRONG dữ liệu, hãy đưa ra 'Verdict' (Recommend / Negotiate / Avoid) dựa trên giá so với quy tắc. NẾU KHÔNG CÓ CARRIER NÀO HỢP LỆ, TRẢ VỀ MẢNG RỖNG [].
-      2. Xác định các vấn đề tuân thủ (Compliance) cụ thể cho từng báo giá đang xem xét. NẾU KHÔNG BIẾT THÌ BỎ QUA.
-      3. Gợi ý 1-3 'Chiến lược đàm phán' (Negotiation Strategies) thực tế dựa trên dữ liệu báo giá này. KHÔNG NÓI CHUNG CHUNG.
-      
-      YÊU CẦU QUAN TRỌNG:
-      - TẤT CẢ nội dung 'reason', 'title', 'point', 'issues' PHẢI BẰNG TIẾNG VIỆT.
-      - Trả về DUY NHẤT một đối tượng JSON hợp lệ theo cấu trúc sau:
-      {
-        "verdicts": [
-          { "carrier": "string", "verdict": "Recommend|Negotiate|Avoid", "reason": "nội dung tiếng Việt" }
-        ],
-        "negotiation_strategies": [
-          { "title": "tiêu đề tiếng Việt", "point": "chi tiết tiếng Việt" }
-        ],
-        "compliance": [
-          { "carrier": "string", "issues": ["vấn đề tiếng Việt"], "is_compliant": boolean }
-        ]
-      }
-    `;
+        // ── STEP 5: Build context and generate Markdown expert report ──
+        const staticTerms = this.specialTermsService.getTermsContent();
+        const allTerms = [staticTerms, ...commonTermsTexts].filter(Boolean).join('\n\n');
+        const rfqContext = rfqTexts.join('\n\n');
 
-        const aiResponse = await this.aiService.chat(analysisPrompt);
-        let aiAnalysis: any;
-        try {
-            let jsonStr = aiResponse.replace(/```json|```/g, '').trim();
+        const quoteTextsBlock = quoteItems.map((item, i) =>
+            `=== BÁO GIÁ #${i + 1}: "${item.fileName}" ===\n${item.text}\n=== KẾT THÚC BÁO GIÁ #${i + 1} ===`
+        ).join('\n\n');
 
-            // Tìm ngoặc nhọn đầu tiên và cuối cùng để trích xuất JSON thuần tuý
-            const firstBrace = jsonStr.indexOf('{');
-            const lastBrace = jsonStr.lastIndexOf('}');
-            if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-                jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
-            }
+        const analysisPrompt = this.buildAnalysisPrompt(quoteTextsBlock, allTerms, rfqContext, quoteItems.length);
 
-            aiAnalysis = JSON.parse(jsonStr);
-        } catch (e) {
-            this.logger.error('Failed to parse AI analysis JSON. Raw response:', aiResponse);
-            aiAnalysis = {
-                verdicts: [],
-                negotiation_strategies: [{ title: "Cần xem xét thủ công", point: "Phản hồi từ AI không đúng định dạng. Vui lòng thử lại hoặc kiểm tra file gốc." }],
-                compliance: [],
-                rawText: aiResponse
-            };
-        }
+        this.logger.log('Generating Markdown expert report via chatLong...');
+        const markdownReport = await this.aiService.chatLong(analysisPrompt);
 
+        // ── STEP 6: Return combined result ──
         return {
-            summary: insights,
+            summary,
             quotes: structuredQuotes,
-            ai_analysis: aiAnalysis,
+            markdown_report: markdownReport,
+            file_classification: {
+                common_terms: commonTermsTexts.length,
+                rfq: rfqTexts.length,
+                quotes: quoteItems.map(q => q.fileName),
+            },
         };
     }
 
+    /**
+     * Build the expert analysis prompt for generating a Markdown report.
+     */
+    private buildAnalysisPrompt(quoteTexts: string, terms: string, rfqContext: string, quoteCount: number): string {
+        return `/no_think
+Bạn là một CHUYÊN GIA LOGISTICS cao cấp với hơn 15 năm kinh nghiệm trong ngành vận tải biển quốc tế.
+
+NHIỆM VỤ: Phân tích ${quoteCount} báo giá vận chuyển dưới đây và viết một BÁO CÁO PHÂN TÍCH CHI TIẾT bằng tiếng Việt.
+
+${rfqContext ? `## YÊU CẦU HỎI CƯỚC CỦA KHÁCH HÀNG:\n${rfqContext}\n` : ''}
+
+## THUẬT NGỮ CHUYÊN MÔN (dùng để hiểu các viết tắt trong báo giá):
+${terms || 'Không có thuật ngữ bổ sung.'}
+
+## CÁC BÁO GIÁ CẦN PHÂN TÍCH:
+${quoteTexts}
+
+## YÊU CẦU BÁO CÁO:
+
+Hãy viết báo cáo với cấu trúc Markdown sau. PHẢI dựa 100% trên dữ liệu có trong file, KHÔNG được bịa đặt:
+
+### Phân tích báo giá từ các file uploaded
+- Phân tích từng đại lý cung cấp báo giá gì (FCL hay LCL, POL nào, POD nào)
+- So sánh với yêu cầu hỏi cước của khách (nếu có)
+- Nêu rõ khác biệt quan trọng (VD: yêu cầu FCL từ Ningbo nhưng được báo LCL từ Shenzhen)
+
+### Lưu ý quan trọng
+- Validity (hiệu lực báo giá)
+- Đơn vị tiền tệ
+- Cách tính phí (CBM, RT, per container...)
+- Các khoản chưa bao gồm (PSS, CAF, v.v.)
+
+### Bảng so sánh chi tiết
+Tạo bảng Markdown với các cột phù hợp, ví dụ:
+| Đại lý / Carrier | Loại hàng | POL → POD | Ocean Freight | Local Charges tại POD | FCA Charges | Tổng chi phí ước tính (USD) | Transit Time | Free Time tại POD |
+
+Mỗi hàng là một option từ báo giá. Nếu một file có nhiều option (nhiều hãng tàu), tách thành nhiều hàng.
+
+### Kết luận: Bên nào có giá tốt nhất?
+- Phân tích ưu nhược từng bên dựa trên yêu cầu hỏi cước
+- So sánh tổng chi phí ước tính
+- Đưa ra lời khuyên cụ thể
+
+### Insight thêm
+- Gợi ý đàm phán cụ thể
+- Cảnh báo về phí ẩn, mùa cao điểm, validity sắp hết
+- Lưu ý về sự khác biệt FCL vs LCL cho volume đã cho
+
+QUAN TRỌNG:
+- TUYỆT ĐỐI KHÔNG BỊA ĐẶT số liệu hoặc tên hãng tàu
+- Nếu thông tin không có trong file, ghi rõ "Không chỉ định" hoặc "Không có dữ liệu"
+- Tất cả nội dung PHẢI BẰNG TIẾNG VIỆT
+- Trả về DUY NHẤT nội dung Markdown, KHÔNG kèm lời giải thích bên ngoài
+`;
+    }
+
+    /**
+     * Calculate stat card insights from per-file structured extraction data.
+     */
     private calculateInsights(quotes: any[]) {
         if (quotes.length === 0) return null;
 
@@ -142,8 +172,6 @@ export class QuoteService {
         const fastest = [...validQuotes].sort((a, b) => a.transit_time_days - b.transit_time_days)[0];
 
         const outliers = validQuotes.filter(q => q.total_amount > avgPrice * 1.5);
-
-        // Calculate saving potential (Max - Cheapest)
         const savingPotential = maxPrice > 0 && cheapest ? maxPrice - cheapest.total_amount : 0;
 
         return {
@@ -155,13 +183,12 @@ export class QuoteService {
             fastest_days: fastest?.transit_time_days,
             outlier_warnings: outliers.map(q => q.carrier),
             saving_potential: savingPotential,
-            currency: cheapest?.currency || 'USD'
+            currency: cheapest?.currency || 'USD',
         };
     }
 
     /**
      * Chat with AI about the quotes context (Logistics Co-Pilot).
-     * Sends the user message + conversation history + quote analysis context to LLM.
      */
     async chatWithQuotesContext(
         message: string,
@@ -170,12 +197,16 @@ export class QuoteService {
     ): Promise<{ reply: string }> {
         this.logger.log(`Chat request: "${message.substring(0, 50)}..."`);
 
-        // Build conversation context for AI
-        const contextSummary = context
-            ? `\nHere is the quote analysis data the user is looking at:\n${JSON.stringify(context, null, 2)}`
-            : '\nNo quote analysis data available yet.';
+        // Use markdown_report as primary context if available
+        let contextSummary: string;
+        if (context?.markdown_report) {
+            contextSummary = `\nDưới đây là báo cáo phân tích báo giá:\n${context.markdown_report}`;
+        } else if (context) {
+            contextSummary = `\nDữ liệu phân tích:\n${JSON.stringify(context, null, 2)}`;
+        } else {
+            contextSummary = '\nChưa có dữ liệu phân tích báo giá.';
+        }
 
-        // Filter out old mock/system messages from history before sending
         const cleanHistory = history
             .filter(m => !m.content.toLowerCase().includes('mock mode') && !m.content.toLowerCase().includes('chế độ thử nghiệm'))
             .slice(-6);
@@ -184,16 +215,16 @@ export class QuoteService {
             `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`
         ).join('\n');
 
-        const systemPrompt = `Bạn là "Logistics Co-Pilot", một trợ lý AI chuyên về so sánh báo giá vận chuyển và đàm phán hợp đồng.
+        const systemPrompt = `/no_think
+Bạn là "Logistics Co-Pilot", một trợ lý AI chuyên về so sánh báo giá vận chuyển và đàm phán hợp đồng.
         
 BẮT BUỘC:
-- NGÔN NGỮ TRẢ LỜI: LUÔN LUÔN TRẢ LỜI BẰNG TIẾNG VIỆT.
-- DỰA TRÊN DỮ LIỆU: Chỉ phân tích dựa trên dữ liệu báo giá người dùng đã cung cấp ở bên dưới.
-- ZERO HALLUCINATION: NẾU NGƯỜI DÙNG HỎI THÔNG TIN KHÔNG CÓ TRONG DATA HOẶC FILE, HÃY TRẢ LỜI RẰNG "TÔI KHÔNG TÌM THẤY THÔNG TIN NÀY TRONG BÁO GIÁ". TUYỆT ĐỐI KHÔNG BỊA RA CÂU TRẢ LỜI HOẶC SỐ LIỆU.
-- KHÔNG đề cập đến "chế độ thử nghiệm", "mock mode", hoặc tình trạng kết nối.
-- Hãy tự tin, súc tích và đưa ra các lời khuyên thực tế.
+- NGÔN NGỮ: LUÔN TRẢ LỜI BẰNG TIẾNG VIỆT.
+- DỰA TRÊN DỮ LIỆU: Chỉ phân tích dựa trên báo cáo phân tích bên dưới.
+- ZERO HALLUCINATION: Nếu không tìm thấy thông tin, trả lời "Tôi không tìm thấy thông tin này trong báo giá".
+- KHÔNG đề cập "chế độ thử nghiệm" hoặc "mock mode".
+- Trả lời súc tích, thực tế.
 
-Thông tin báo giá hiện tại (Dữ liệu gốc từ file của người dùng):
 ${contextSummary}
 
 ${recentHistory ? `Lịch sử trò chuyện:\n${recentHistory}\n` : ''}

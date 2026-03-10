@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { TrendingUp, FileText, Zap, UploadCloud, XCircle, Timer, AlertCircle, Send, Bot } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import axios from 'axios';
 
 const ComparativeDashboard: React.FC = () => {
@@ -464,144 +466,36 @@ const ComparativeDashboard: React.FC = () => {
             )}
 
             {result && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '1.5rem' }}>
-
-                    {/* LEFT COLUMN: COMPARISON TABLE */}
-                    <div className="card" style={{ padding: '0', display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--brand-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h3 style={{ fontSize: '1.125rem', fontWeight: 'bold' }}>Quote Comparison <span style={{ color: 'var(--text-dim)', fontWeight: 'normal', fontSize: '0.9rem' }}>| AI Optimized Rates</span></h3>
-                        </div>
-
-                        <div style={{ padding: '1rem', flex: 1 }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                {/* Table Header Equivalent */}
-                                <div style={{ display: 'grid', gridTemplateColumns: '40px 2fr 1.5fr 1.5fr 1.5fr 150px', padding: '0 1rem 0.5rem 1rem', color: 'var(--text-dim)', fontSize: '0.8125rem', fontWeight: 600, borderBottom: '1px solid var(--brand-border)' }}>
-                                    <div>#</div>
-                                    <div>Hãng vận chuyển</div>
-                                    <div>Lộ trình</div>
-                                    <div>Thời gian / Nguồn</div>
-                                    <div>Giá cước</div>
-                                    <div style={{ textAlign: 'right' }}>Hành động</div>
-                                </div>
-
-                                {/* Table Rows */}
-                                {result.quotes && result.quotes.length > 0 ? result.quotes.map((quote: any, idx: number) => {
-                                    const isCheapest = result.summary?.cheapest_carrier === quote.carrier;
-                                    const isFastest = result.summary?.fastest_days === quote.transit_time_days;
-
-                                    return (
-                                        <div key={idx} style={{
-                                            display: 'grid', gridTemplateColumns: '40px 2fr 1.5fr 1.5fr 1.5fr 150px', alignItems: 'center',
-                                            background: 'rgba(30, 41, 59, 0.5)', padding: '1rem', borderRadius: '0.75rem',
-                                            border: isCheapest ? '1px solid #10b981' : '1px solid var(--brand-border)'
-                                        }}>
-                                            <div style={{ color: 'var(--text-dim)' }}>{idx + 1}</div>
-                                            <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                                <div style={{ width: '32px', height: '32px', borderRadius: '0.375rem', background: 'var(--brand-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '0.75rem' }}>
-                                                    {quote.carrier?.substring(0, 2).toUpperCase() || 'CX'}
-                                                </div>
-                                                <div>
-                                                    <div>{quote.carrier || "Carrier X"}</div>
-                                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 'normal' }}>Vận chuyển Nhanh</div>
-                                                </div>
-                                            </div>
-                                            <div style={{ fontSize: '0.875rem' }}>
-                                                <div>{quote.origin || "Gốc"}</div>
-                                                <div style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>→ {quote.destination || "Đích"}</div>
-                                            </div>
-                                            <div style={{ fontSize: '0.875rem' }}>
-                                                <div>{quote.transit_time_days || 'N/A'} Ngày</div>
-                                                <div style={{ color: '#818cf8', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setTracePanelData(quote)}>
-                                                    {quote.sourceFile ? "Xem Nguồn" : ""}
-                                                </div>
-                                            </div>
-                                            <div style={{ position: 'relative' }}>
-                                                {isFastest && <div style={{ position: 'absolute', top: '-18px', left: 0, fontSize: '0.65rem', background: '#10b981', color: '#111827', padding: '0.1rem 0.4rem', borderRadius: '0.25rem', fontWeight: 'bold' }}>Nhanh nhất</div>}
-                                                <div style={{ color: isCheapest ? '#10b981' : 'white', fontWeight: 'bold', fontSize: '1.125rem' }}>{quote.total_amount || 0} <span style={{ fontSize: '0.875rem', fontWeight: 'normal' }}>{quote.currency || 'USD'}</span></div>
-                                                {isCheapest && <div style={{ color: '#10b981', fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.05em' }}>GIÁ RẺ NHẤT</div>}
-                                            </div>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', alignItems: 'flex-end' }}>
-                                                <button style={{ width: '100%', padding: '0.4rem 0', background: '#10b981', color: '#111827', border: 'none', borderRadius: '0.375rem', fontWeight: 'bold', fontSize: '0.8125rem', cursor: 'pointer' }}>Đặt ngay</button>
-                                                <button style={{ width: '100%', padding: '0.3rem 0', background: 'transparent', color: 'var(--text-dim)', border: '1px solid var(--text-dim)', borderRadius: '0.375rem', fontSize: '0.75rem', cursor: 'pointer' }}>Chi tiết</button>
-                                            </div>
-                                        </div>
-                                    )
-                                }) : (
-                                    <div style={{ textAlign: 'center', padding: '3rem', fontStyle: 'italic', color: 'var(--text-dim)' }}>No structured data extracted.</div>
+                <div className="card" style={{ padding: '2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--brand-border)', paddingBottom: '1rem' }}>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <FileText size={20} style={{ color: '#818cf8' }} />
+                            Báo cáo Phân tích Chuyên gia
+                        </h3>
+                        {result.file_classification && (
+                            <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem' }}>
+                                <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '0.2rem 0.6rem', borderRadius: '1rem' }}>
+                                    {result.file_classification.quotes?.length || 0} báo giá
+                                </span>
+                                {result.file_classification.rfq > 0 && (
+                                    <span style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', padding: '0.2rem 0.6rem', borderRadius: '1rem' }}>
+                                        {result.file_classification.rfq} yêu cầu hỏi cước
+                                    </span>
+                                )}
+                                {result.file_classification.common_terms > 0 && (
+                                    <span style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', padding: '0.2rem 0.6rem', borderRadius: '1rem' }}>
+                                        {result.file_classification.common_terms} thuật ngữ
+                                    </span>
                                 )}
                             </div>
-                        </div>
+                        )}
                     </div>
 
-                    {/* RIGHT COLUMN: INSIGHTS (only when result exists) */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
-                        {/* Analytic Insights */}
-                        <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                <h3 style={{ fontSize: '1rem', fontWeight: 'bold', color: 'white' }}>Phân tích Chuyên sâu</h3>
-                                <FileText size={16} style={{ color: 'var(--text-dim)' }} />
-                            </div>
-
-                            {/* Dynamic Cost Comparison Chart */}
-                            <div className="card" style={{ marginBottom: '1rem', padding: '1.25rem' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                                    <span>So sánh Giá</span>
-                                    <span>Hãng vs Trung bình</span>
-                                </div>
-                                <div style={{ height: '80px', display: 'flex', alignItems: 'flex-end', gap: '4px' }}>
-                                    {result.quotes.map((q: any, i: number) => (
-                                        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%' }}>
-                                            <div style={{
-                                                width: '100%',
-                                                background: q.total_amount <= result.summary.average_price ? '#10b981' : '#f43f5e',
-                                                height: `${Math.min(100, (q.total_amount / result.summary.average_price) * 50)}%`,
-                                                borderRadius: '2px 2px 0 0',
-                                                transition: 'height 1s ease-out'
-                                            }} />
-                                            <span style={{ fontSize: '0.6rem', color: 'var(--text-dim)', marginTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', textAlign: 'center' }}>
-                                                {q.carrier}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* AI Verdicts & Negotiation Strategies */}
-                            <div style={{ marginTop: '0.5rem' }}>
-                                <h3 style={{ fontSize: '1rem', fontWeight: 'bold', color: 'white', marginBottom: '1rem' }}>Đánh giá từ AI</h3>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                    {result.ai_analysis.verdicts?.map((v: any, i: number) => (
-                                        <div key={i} className="card" style={{ padding: '0.75rem', borderLeft: `4px solid ${v.verdict === 'Recommend' ? '#10b981' : v.verdict === 'Negotiate' ? '#f59e0b' : '#f43f5e'}` }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                                                <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{v.carrier}</span>
-                                                <span style={{
-                                                    fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '4px',
-                                                    background: v.verdict === 'Recommend' ? 'rgba(16, 185, 129, 0.1)' : v.verdict === 'Negotiate' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(244, 63, 94, 0.1)',
-                                                    color: v.verdict === 'Recommend' ? '#10b981' : v.verdict === 'Negotiate' ? '#f59e0b' : '#f43f5e',
-                                                    fontWeight: 'bold', textTransform: 'uppercase'
-                                                }}>{v.verdict}</span>
-                                            </div>
-                                            <p style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: 0 }}>{v.reason}</p>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <h3 style={{ fontSize: '1rem', fontWeight: 'bold', color: 'white', marginTop: '1.5rem', marginBottom: '1rem' }}>Kế hoạch Đàm phán</h3>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                    {result.ai_analysis.negotiation_strategies?.map((s: any, i: number) => (
-                                        <div key={i} className="card" style={{ padding: '1rem', background: 'rgba(99, 102, 241, 0.05)', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                                <Zap size={14} style={{ color: '#818cf8' }} />
-                                                <span style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#818cf8' }}>{s.title}</span>
-                                            </div>
-                                            <p style={{ fontSize: '0.75rem', color: 'var(--text-main)', marginBottom: 0 }}>{s.point}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
+                    {/* Markdown Report */}
+                    <div className="markdown-report">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {result.markdown_report || 'Không có báo cáo phân tích.'}
+                        </ReactMarkdown>
                     </div>
                 </div>
             )}

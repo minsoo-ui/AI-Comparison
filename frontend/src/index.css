@@ -265,3 +265,148 @@ td {
 .context-menu-item.danger:hover {
   background: rgba(244, 63, 94, 0.1);
 }
+
+/* ═══ Markdown Report Styles (Dark Theme) ═══ */
+.markdown-report {
+  color: var(--text-main);
+  font-size: 0.9rem;
+  line-height: 1.75;
+}
+
+.markdown-report h1,
+.markdown-report h2,
+.markdown-report h3,
+.markdown-report h4 {
+  color: white;
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+  font-weight: 700;
+}
+
+.markdown-report h1 {
+  font-size: 1.5rem;
+  border-bottom: 1px solid var(--brand-border);
+  padding-bottom: 0.5rem;
+}
+
+.markdown-report h2 {
+  font-size: 1.25rem;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+  padding-bottom: 0.4rem;
+}
+
+.markdown-report h3 {
+  font-size: 1.1rem;
+  color: #818cf8;
+}
+
+.markdown-report h4 {
+  font-size: 1rem;
+  color: #06b6d4;
+}
+
+.markdown-report p {
+  margin-bottom: 0.75rem;
+}
+
+.markdown-report strong {
+  color: white;
+  font-weight: 600;
+}
+
+.markdown-report ul,
+.markdown-report ol {
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.markdown-report li {
+  margin-bottom: 0.35rem;
+}
+
+.markdown-report li::marker {
+  color: #818cf8;
+}
+
+/* Tables */
+.markdown-report table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25rem 0;
+  font-size: 0.8125rem;
+  border: 1px solid var(--brand-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.markdown-report thead {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.markdown-report th {
+  color: #818cf8;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.75rem 0.75rem;
+  text-align: left;
+  border-bottom: 2px solid var(--brand-border);
+  white-space: nowrap;
+}
+
+.markdown-report td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+  color: var(--text-main);
+  vertical-align: top;
+}
+
+.markdown-report tbody tr:hover {
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.markdown-report tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Blockquotes */
+.markdown-report blockquote {
+  border-left: 3px solid #818cf8;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+  background: rgba(99, 102, 241, 0.05);
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: var(--text-dim);
+}
+
+/* Code */
+.markdown-report code {
+  background: rgba(15, 23, 42, 0.8);
+  color: #06b6d4;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.8125rem;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.markdown-report pre {
+  background: rgba(15, 23, 42, 0.8);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+  border: 1px solid var(--brand-border);
+}
+
+.markdown-report pre code {
+  background: transparent;
+  padding: 0;
+}
+
+/* Horizontal rules */
+.markdown-report hr {
+  border: none;
+  border-top: 1px solid var(--brand-border);
+  margin: 1.5rem 0;
+}

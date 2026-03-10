@@ -17,7 +17,7 @@ export class AiService implements OnModuleInit {
     async onModuleInit() {
         const apiBase = this.configService.get<string>('LLM_API_BASE') || 'http://localhost:11434/v1';
         this.ollamaBaseUrl = apiBase.replace('/v1', '');
-        this.modelName = this.configService.get<string>('LLM_MODEL') || 'qwen2.5:0.5b';
+        this.modelName = this.configService.get<string>('LLM_MODEL') || 'qwen3:4b';
 
         this.logger.log(`Initializing AI Service with model: ${this.modelName} at ${this.ollamaBaseUrl}`);
 
@@ -117,6 +117,26 @@ export class AiService implements OnModuleInit {
                 });
             }
             return 'Xin lỗi, tôi không thể kết nối với bộ não AI lúc này. Vui lòng kiểm tra Ollama và thử lại nhé!';
+        }
+    }
+
+    /**
+     * Extended chat method for generating long Markdown reports.
+     * Uses higher num_predict to allow the model to write comprehensive analyses.
+     */
+    async chatLong(prompt: string): Promise<string> {
+        try {
+            const longLlm = new ChatOllama({
+                baseUrl: this.ollamaBaseUrl,
+                model: this.modelName,
+                temperature: 0,
+                numPredict: 4096,
+            });
+            const response = await longLlm.invoke(prompt);
+            return response.content.toString();
+        } catch (error) {
+            this.logger.warn(`Long LLM call failed (${error.message})`);
+            return 'Xin lỗi, AI không thể tạo báo cáo phân tích lúc này. Vui lòng thử lại.';
         }
     }
 
