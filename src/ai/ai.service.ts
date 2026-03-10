@@ -101,17 +101,21 @@ export class AiService implements OnModuleInit {
             const response = await this.llm.invoke(prompt);
             return response.content.toString();
         } catch (error) {
-            this.logger.warn(`LLM call failed (${error.message}), returning mock response.`);
+            this.logger.warn(`LLM call failed (${error.message}), returning placeholder response.`);
 
             if (prompt.includes('Extract information')) {
                 return JSON.stringify({
-                    company: 'FedEx',
-                    total_price: 500,
-                    weight: 50,
-                    item: 'Macbook Air M2'
+                    data: {
+                        carrier: 'Không xác định',
+                        total_amount: 0,
+                        currency: 'USD',
+                        origin: 'N/A',
+                        destination: 'N/A'
+                    },
+                    traceability: {}
                 });
             }
-            return 'Xin lỗi, AI hiện tại không kết nối được. Hãy kiểm tra Ollama đã được cài đặt và chạy chưa nhé!';
+            return 'Xin lỗi, tôi không thể kết nối với bộ não AI lúc này. Vui lòng kiểm tra Ollama và thử lại nhé!';
         }
     }
 

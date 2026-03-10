@@ -205,23 +205,23 @@ const Database: React.FC = () => {
                 <div>
                     <h2 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: 'white', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <DatabaseIcon style={{ color: 'var(--brand-primary)' }} />
-                        Database
+                        Cơ sở dữ liệu
                     </h2>
-                    <p style={{ color: 'var(--text-dim)' }}>Manage special terms and business rules for AI context reference.</p>
+                    <p style={{ color: 'var(--text-dim)' }}>Quản lý các điều khoản đặc biệt và quy tắc kinh doanh để làm ngữ cảnh cho AI.</p>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem' }}>
                     <button
                         onClick={() => setShowTrash(!showTrash)}
                         style={{ padding: '0.8rem 1.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center', background: showTrash ? 'rgba(99, 102, 241, 0.2)' : 'rgba(15, 23, 42, 0.4)', color: showTrash ? '#818cf8' : 'var(--text-main)', border: `1px solid ${showTrash ? '#818cf8' : 'var(--brand-border)'}`, borderRadius: '0.5rem', cursor: 'pointer', transition: 'all 0.2s' }}
                     >
-                        <Trash2 size={18} /> {showTrash ? 'Back to Database' : 'Recent Deleted'}
+                        <Trash2 size={18} /> {showTrash ? 'Quay lại CSDL' : 'Đã xóa gần đây'}
                     </button>
                     {!showTrash && selectedIds.length > 0 && (
                         <button
                             onClick={handleMultiDelete}
                             style={{ padding: '0.8rem 1.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center', background: 'rgba(244, 63, 94, 0.1)', color: '#f43f5e', border: '1px solid #f43f5e', borderRadius: '0.5rem', cursor: 'pointer' }}
                         >
-                            <Trash2 size={18} /> Delete Selected ({selectedIds.length})
+                            <Trash2 size={18} /> Xóa mục đã chọn ({selectedIds.length})
                         </button>
                     )}
                     {!showTrash && (
@@ -232,7 +232,7 @@ const Database: React.FC = () => {
                             disabled={isUploading}
                         >
                             {isUploading ? <Loader2 size={18} className="spin" /> : <Plus size={18} />}
-                            {isUploading ? 'Uploading...' : 'Upload Rule File'}
+                            {isUploading ? 'Đang tải lên...' : 'Tải lên File Quy tắc'}
                         </button>
                     )}
                 </div>
@@ -244,7 +244,7 @@ const Database: React.FC = () => {
                         <FileText size={24} />
                     </div>
                     <div>
-                        <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>Total Files</p>
+                        <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>Tổng số File</p>
                         <p style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{files.length}</p>
                     </div>
                 </div>
@@ -253,7 +253,7 @@ const Database: React.FC = () => {
                         <HardDrive size={24} />
                     </div>
                     <div>
-                        <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>Storage Used</p>
+                        <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>Dung lượng đã dùng</p>
                         <p style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>4.5 MB</p>
                     </div>
                 </div>
@@ -262,7 +262,7 @@ const Database: React.FC = () => {
                         <ShieldCheck size={24} />
                     </div>
                     <div>
-                        <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>Active Rules</p>
+                        <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>Quy tắc đang Hoạt động</p>
                         <p style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{files.filter(f => f.status === 'Active').length} Models</p>
                     </div>
                 </div>
@@ -271,7 +271,7 @@ const Database: React.FC = () => {
             <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
                 <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--brand-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 style={{ fontSize: '1.125rem', fontWeight: 'bold', color: showTrash ? '#f43f5e' : 'white' }}>
-                        {showTrash ? 'Recently Deleted Files (Retained for 30 days)' : 'Knowledge Base Files'}
+                        {showTrash ? 'File đã xóa gần đây (Lưu trữ trong 30 ngày)' : 'Danh mục Tài liệu Kiến thức'}
                     </h3>
                     {showTrash && trashFiles.length > 0 && (
                         <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -293,14 +293,14 @@ const Database: React.FC = () => {
                                     transition: 'all 0.2s'
                                 }}
                             >
-                                <ShieldCheck size={16} /> Restore {selectedTrashIds.length > 0 ? `(${selectedTrashIds.length})` : ''}
+                                <ShieldCheck size={16} /> Khôi phục {selectedTrashIds.length > 0 ? `(${selectedTrashIds.length})` : ''}
                             </button>
                             <button
                                 onClick={handleEmptyTrash}
                                 style={{ padding: '0.5rem 1rem', display: 'flex', gap: '0.5rem', alignItems: 'center', background: 'transparent', color: '#f43f5e', border: '1px solid #f43f5e', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.875rem' }}
                                 className="hover:bg-red-900"
                             >
-                                <Trash2 size={16} /> Empty Trash
+                                <Trash2 size={16} /> Dọn sạch Thùng rác
                             </button>
                         </div>
                     )}
@@ -326,11 +326,11 @@ const Database: React.FC = () => {
                                         />
                                     )}
                                 </th>
-                                <th>File Name</th>
-                                <th>{showTrash ? 'Deleted At' : 'Description'}</th>
-                                <th>Size</th>
-                                <th>{!showTrash && 'Last Updated'}</th>
-                                <th>Status</th>
+                                <th>Tên File</th>
+                                <th>{showTrash ? 'Ngày xóa' : 'Mô tả'}</th>
+                                <th>Dung lượng</th>
+                                <th>{!showTrash && 'Cập nhật cuối'}</th>
+                                <th>Trạng thái</th>
                                 {!showTrash && <th style={{ width: '60px' }}></th>}
                             </tr>
                         </thead>
@@ -444,10 +444,10 @@ const Database: React.FC = () => {
                         zIndex: 1001
                     }}>
                         <button onClick={(e) => { e.stopPropagation(); handleOpenFolder(); }} className="context-menu-item">
-                            <FolderOpen size={16} style={{ color: '#06b6d4' }} /> Open Folder
+                            <FolderOpen size={16} style={{ color: '#06b6d4' }} /> Mở thư mục
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); handleDelete(openMenuId); }} className="context-menu-item danger">
-                            <Trash2 size={16} /> Delete
+                            <Trash2 size={16} /> Xóa
                         </button>
                     </div>
                 </>,

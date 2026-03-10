@@ -25,9 +25,9 @@ function App() {
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <span style={{ color: 'var(--text-dim)' }}>Pages /</span>
             <span style={{ fontWeight: 600 }}>
-              {activeTab === 'dashboard' ? 'Comparative Dashboard' :
-                activeTab === 'history' ? 'Recent Quotes' :
-                  activeTab === 'hscode' ? 'HSCode Search' : 'Database'}
+              {activeTab === 'dashboard' ? 'Bảng điều khiển So sánh' :
+                activeTab === 'history' ? 'Lịch sử Báo giá' :
+                  activeTab === 'hscode' ? 'Tra cứu HS Code' : 'Cơ sở dữ liệu'}
             </span>
           </div>
 

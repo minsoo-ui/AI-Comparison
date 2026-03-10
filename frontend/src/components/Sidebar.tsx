@@ -8,10 +8,10 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
     const menuItems = [
-        { id: 'dashboard', icon: LayoutDashboard, label: 'Comparative Dashboard' },
-        { id: 'history', icon: FileText, label: 'Recent Quotes' },
-        { id: 'hscode', icon: Search, label: 'HSCode Search' },
-        { id: 'database', icon: DatabaseIcon, label: 'Database' },
+        { id: 'dashboard', icon: LayoutDashboard, label: 'Bảng điều khiển' },
+        { id: 'history', icon: FileText, label: 'Lịch sử Báo giá' },
+        { id: 'hscode', icon: Search, label: 'Tra cứu HS Code' },
+        { id: 'database', icon: DatabaseIcon, label: 'Cơ sở dữ liệu' },
     ];
 
     return (
@@ -39,7 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
             <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--brand-border)' }}>
                 <button className="nav-item">
                     <Settings size={20} />
-                    <span>Settings</span>
+                    <span>Cài đặt</span>
                 </button>
             </div>
         </div>

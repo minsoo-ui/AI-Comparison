@@ -66,34 +66,36 @@ export class QuoteService {
         // 4. AI Analysis
         const businessRules = this.specialTermsService.getTermsContent();
         const analysisPrompt = `
-      As a freight logistics expert, analyze these quotes against our business rules.
+      Là một chuyên gia logistics, hãy phân tích các báo giá sau đây dựa trên quy tắc kinh doanh của chúng tôi.
       
-      Quotes Data:
+      Dữ liệu báo giá (TRÍCH XUẤT TỪ FILE NGƯỜI DÙNG):
       ${JSON.stringify(structuredQuotes, null, 2)}
       
-      Business Rules:
+      Quy tắc kinh doanh:
       ${businessRules}
       
-      Analytical Summary:
-      - Average Price: ${insights.average_price}
-      - Cheapest Option: ${insights.cheapest_price} by ${insights.cheapest_carrier}
-      - Potential Savings: ${insights.saving_potential}
+      Tóm tắt phân tích:
+      - Giá trung bình: ${insights.average_price}
+      - Lựa chọn rẻ nhất: ${insights.cheapest_price} bởi ${insights.cheapest_carrier}
+      - Tiềm năng tiết kiệm: ${insights.saving_potential}
       
-      Tasks:
-      1. For EACH carrier, provide a 'Verdict' (Recommend / Negotiate / Avoid) based on price vs rules.
-      2. Identify specific Rule Compliance issues for each quote.
-      3. Suggest 3-5 high-impact 'Negotiation Strategies' for the user.
+      NHIỆM VỤ:
+      1. Với MỖI carrier, hãy đưa ra 'Verdict' (Recommend / Negotiate / Avoid) dựa trên giá so với quy tắc.
+      2. Xác định các vấn đề tuân thủ (Compliance) cụ thể cho từng báo giá.
+      3. Gợi ý 3-5 'Chiến lược đàm phán' (Negotiation Strategies) có tác động cao.
       
-      CRITICAL: Return ONLY a valid JSON object with the following structure:
+      YÊU CẦU QUAN TRỌNG:
+      - TẤT CẢ nội dung 'reason', 'title', 'point', 'issues' PHẢI BẰNG TIẾNG VIỆT.
+      - Trả về DUY NHẤT một đối tượng JSON hợp lệ theo cấu trúc sau:
       {
         "verdicts": [
-          { "carrier": "string", "verdict": "Recommend|Negotiate|Avoid", "reason": "string" }
+          { "carrier": "string", "verdict": "Recommend|Negotiate|Avoid", "reason": "nội dung tiếng Việt" }
         ],
         "negotiation_strategies": [
-          { "title": "string", "point": "string" }
+          { "title": "tiêu đề tiếng Việt", "point": "chi tiết tiếng Việt" }
         ],
         "compliance": [
-          { "carrier": "string", "issues": ["string"], "is_compliant": boolean }
+          { "carrier": "string", "issues": ["vấn đề tiếng Việt"], "is_compliant": boolean }
         ]
       }
     `;
@@ -107,7 +109,7 @@ export class QuoteService {
             this.logger.error('Failed to parse AI analysis JSON. Raw response:', aiResponse);
             aiAnalysis = {
                 verdicts: [],
-                negotiation_strategies: [{ title: "Manual Review Needed", point: "AI response was not in expected format." }],
+                negotiation_strategies: [{ title: "Cần xem xét thủ công", point: "Phản hồi từ AI không đúng định dạng. Vui lòng thử lại hoặc kiểm tra file gốc." }],
                 compliance: [],
                 rawText: aiResponse
             };
@@ -174,24 +176,20 @@ export class QuoteService {
             `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`
         ).join('\n');
 
-        const systemPrompt = `You are "Logistics Co-Pilot", an AI assistant specializing in freight quote comparison and negotiation.
+        const systemPrompt = `Bạn là "Logistics Co-Pilot", một trợ lý AI chuyên về so sánh báo giá vận chuyển và đàm phán hợp đồng.
+        
+BẮT BUỘC:
+- NGÔN NGỮ TRẢ LỜI: LUÔN LUÔN TRẢ LỜI BẰNG TIẾNG VIỆT.
+- DỰA TRÊN DỮ LIỆU: Chỉ phân tích dựa trên dữ liệu báo giá người dùng đã học được từ file của họ.
+- KHÔNG đề cập đến "chế độ thử nghiệm", "mock mode", hoặc tình trạng kết nối.
+- Hãy tự tin, súc tích và đưa ra các lời khuyên thực tế.
 
-IMPORTANT RULES:
-- NEVER mention "mock mode", "testing mode", "chế độ thử nghiệm", or connection status.
-- You ARE fully operational. Always answer confidently.
-- Respond in the SAME LANGUAGE as the user's message.
-- Be concise, practical, and actionable.
-
-Your capabilities:
-- Analyze and compare shipping quotes
-- Provide cost optimization advice
-- Suggest negotiation strategies
-- Answer questions about carriers, transit times, rates, and trade terms
+Thông tin báo giá hiện tại (Dữ liệu gốc từ file của người dùng):
 ${contextSummary}
 
-${recentHistory ? `Recent conversation:\n${recentHistory}\n` : ''}
-User: ${message}
-Assistant:`;
+${recentHistory ? `Lịch sử trò chuyện:\n${recentHistory}\n` : ''}
+Người dùng: ${message}
+Trợ lý (Trả lời bằng tiếng Việt):`;
 
         try {
             const reply = await this.aiService.chat(systemPrompt);

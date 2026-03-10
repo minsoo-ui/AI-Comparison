@@ -212,9 +212,10 @@ const ComparativeDashboard: React.FC = () => {
             setResult(null);
             setFiles([]);
             setSavedFileNames([]);
-            setChatMessages([{ role: 'ai', content: 'Xin chào! Tôi đã phân tích xong các báo giá. Bạn cần hỏi thêm chi tiết gì không?' }]);
+            setChatMessages([{ role: 'ai', content: 'Xin chào! Tôi là Logistics Co-Pilot. Bạn cần hỏi gì về báo giá?' }]);
             setUploadProgress(0);
             setAiProgress(0);
+            setAiTime(0);
         }
     };
 
@@ -257,8 +258,8 @@ const ComparativeDashboard: React.FC = () => {
         <div className="animate" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ flex: 1 }}>
-                    <h2 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: 'white', marginBottom: '0.5rem' }}>Comparative Analysis</h2>
-                    <p style={{ color: 'var(--text-dim)', marginBottom: '1.5rem' }}>Upload multiple quotes to get instant AI-driven cost & performance comparisons.</p>
+                    <h2 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: 'white', marginBottom: '0.5rem' }}>Phân tích & So sánh Báo giá</h2>
+                    <p style={{ color: 'var(--text-dim)', marginBottom: '1.5rem' }}>Tải lên nhiều file báo giá để so sánh chi phí và hiệu suất tức thì bằng AI.</p>
 
                     {/* File Upload Area */}
                     <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '2px dashed var(--brand-border)', borderRadius: '1rem', padding: '1.5rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -269,9 +270,9 @@ const ComparativeDashboard: React.FC = () => {
                             <div style={{ flex: 1 }}>
                                 <input type="file" multiple id="file-upload" style={{ display: 'none' }} onChange={handleFileChange} disabled={comparing} />
                                 <label htmlFor="file-upload" style={{ cursor: comparing ? 'not-allowed' : 'pointer', fontWeight: 600, color: '#818cf8', display: 'inline-block' }}>
-                                    Click to Browse
+                                    Nhấp để Chọn File
                                 </label>
-                                <span style={{ color: 'var(--text-dim)', marginLeft: '0.5rem', fontSize: '0.875rem' }}>or drag and drop files here.</span>
+                                <span style={{ color: 'var(--text-dim)', marginLeft: '0.5rem', fontSize: '0.875rem' }}>hoặc kéo thả file vào đây.</span>
                             </div>
                         </div>
 
@@ -297,7 +298,7 @@ const ComparativeDashboard: React.FC = () => {
                         {/* Show saved files from previous session if no active files selected */}
                         {files.length === 0 && savedFileNames.length > 0 && result && (
                             <div style={{ marginTop: '0.5rem' }}>
-                                <p style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '0.5rem', fontStyle: 'italic' }}>Files used in last analysis (Recovered):</p>
+                                <p style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '0.5rem', fontStyle: 'italic' }}>File đã dùng ở lần phân tích trước (Đã khôi phục):</p>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                     {savedFileNames.map((name, i) => (
                                         <div key={`saved-${i}`} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--brand-dark)', padding: '0.4rem 0.8rem', borderRadius: '0.5rem', fontSize: '0.8125rem', opacity: 0.7 }}>
@@ -327,7 +328,7 @@ const ComparativeDashboard: React.FC = () => {
                                 className="btn-primary"
                                 style={{ padding: '0.8rem 2rem', width: '100%', opacity: files.length === 0 ? 0.5 : 1 }}
                             >
-                                <Zap size={20} /> Analyze Quotes
+                                <Zap size={20} /> Phân tích Báo giá
                             </button>
                             {result && (
                                 <button
@@ -335,7 +336,7 @@ const ComparativeDashboard: React.FC = () => {
                                     style={{ padding: '0.5rem', width: '100%', background: 'transparent', color: 'var(--text-dim)', border: '1px solid var(--brand-border)', borderRadius: '0.5rem', fontSize: '0.8125rem', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
                                     className="hover:border-rose-500 hover:text-rose-500"
                                 >
-                                    <XCircle size={14} /> Clear Cache Result
+                                    <XCircle size={14} /> Xóa Kết quả & Cache
                                 </button>
                             )}
                         </div>
@@ -344,7 +345,7 @@ const ComparativeDashboard: React.FC = () => {
                             onClick={handleCancel}
                             style={{ padding: '0.8rem 2rem', width: '100%', background: 'rgba(244, 63, 94, 0.1)', color: '#f43f5e', border: '1px solid #f43f5e', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
                         >
-                            <XCircle size={20} /> Stop Process
+                            <XCircle size={20} /> Dừng Tiến trình
                         </button>
                     )}
 
@@ -381,7 +382,7 @@ const ComparativeDashboard: React.FC = () => {
                                     <div style={{ width: `${uploadProgress === 100 ? aiProgress : 0}%`, height: '100%', background: 'linear-gradient(90deg, #6366f1, #06b6d4)', transition: 'width 0.5s' }}></div>
                                 </div>
                                 <p style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '0.5rem', fontStyle: 'italic', textAlign: 'center' }}>
-                                    {aiProgress === 100 ? 'Analysis complete!' : aiProgress > 80 ? 'Finalizing insights...' : aiProgress > 30 ? 'Analyzing terms & conditions...' : 'Extracting entities...'}
+                                    {aiProgress === 100 ? 'Đã hoàn tất phân tích!' : aiProgress > 80 ? 'Đang tổng hợp thông tin...' : aiProgress > 30 ? 'Đang phân tích điều khoản...' : 'Đang trích xuất dữ liệu...'}
                                 </p>
                             </div>
                         </div>
@@ -397,7 +398,7 @@ const ComparativeDashboard: React.FC = () => {
                             <TrendingUp size={24} />
                         </div>
                         <div>
-                            <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>Cheapest Option</p>
+                            <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>Lựa chọn Rẻ nhất</p>
                             <p style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{result.summary.cheapest_carrier || 'N/A'}</p>
                         </div>
                     </div>
@@ -406,7 +407,7 @@ const ComparativeDashboard: React.FC = () => {
                             <Zap size={24} />
                         </div>
                         <div>
-                            <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>Potential Savings</p>
+                            <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>Tiết kiệm Tiềm năng</p>
                             <p style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#8b5cf6' }}>
                                 ${result.summary.saving_potential?.toFixed(2)} {result.summary.currency}
                             </p>
@@ -417,8 +418,8 @@ const ComparativeDashboard: React.FC = () => {
                             <Zap size={24} />
                         </div>
                         <div>
-                            <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>Fastest Transit</p>
-                            <p style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{result.summary.fastest_days || '?'} Days</p>
+                            <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>Vận chuyển Nhanh nhất</p>
+                            <p style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{result.summary.fastest_days || '?'} Ngày</p>
                         </div>
                     </div>
                     {result.summary.outlier_warnings && result.summary.outlier_warnings.length > 0 && (
@@ -427,7 +428,7 @@ const ComparativeDashboard: React.FC = () => {
                                 <AlertCircle size={24} />
                             </div>
                             <div>
-                                <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>Outlier Warning</p>
+                                <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>Cảnh báo Giá cao</p>
                                 <p style={{ fontSize: '1rem', fontWeight: 'bold', color: '#f43f5e' }}>
                                     {result.summary.outlier_warnings.join(', ')}
                                 </p>
@@ -451,11 +452,11 @@ const ComparativeDashboard: React.FC = () => {
                                 {/* Table Header Equivalent */}
                                 <div style={{ display: 'grid', gridTemplateColumns: '40px 2fr 1.5fr 1.5fr 1.5fr 150px', padding: '0 1rem 0.5rem 1rem', color: 'var(--text-dim)', fontSize: '0.8125rem', fontWeight: 600, borderBottom: '1px solid var(--brand-border)' }}>
                                     <div>#</div>
-                                    <div>Carrier</div>
-                                    <div>Route</div>
-                                    <div>Transit / Trace</div>
-                                    <div>Rate</div>
-                                    <div style={{ textAlign: 'right' }}>Action</div>
+                                    <div>Hãng vận chuyển</div>
+                                    <div>Lộ trình</div>
+                                    <div>Thời gian / Nguồn</div>
+                                    <div>Giá cước</div>
+                                    <div style={{ textAlign: 'right' }}>Hành động</div>
                                 </div>
 
                                 {/* Table Rows */}
@@ -476,27 +477,27 @@ const ComparativeDashboard: React.FC = () => {
                                                 </div>
                                                 <div>
                                                     <div>{quote.carrier || "Carrier X"}</div>
-                                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 'normal' }}>Express</div>
+                                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 'normal' }}>Vận chuyển Nhanh</div>
                                                 </div>
                                             </div>
                                             <div style={{ fontSize: '0.875rem' }}>
-                                                <div>{quote.origin || "Origin"}</div>
-                                                <div style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>→ {quote.destination || "Destination"}</div>
+                                                <div>{quote.origin || "Gốc"}</div>
+                                                <div style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>→ {quote.destination || "Đích"}</div>
                                             </div>
                                             <div style={{ fontSize: '0.875rem' }}>
-                                                <div>{quote.transit_time_days || 'N/A'} Days</div>
+                                                <div>{quote.transit_time_days || 'N/A'} Ngày</div>
                                                 <div style={{ color: '#818cf8', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setTracePanelData(quote)}>
-                                                    {quote.sourceFile ? "View Source" : ""}
+                                                    {quote.sourceFile ? "Xem Nguồn" : ""}
                                                 </div>
                                             </div>
                                             <div style={{ position: 'relative' }}>
-                                                {isFastest && <div style={{ position: 'absolute', top: '-18px', left: 0, fontSize: '0.65rem', background: '#10b981', color: '#111827', padding: '0.1rem 0.4rem', borderRadius: '0.25rem', fontWeight: 'bold' }}>Fastest</div>}
+                                                {isFastest && <div style={{ position: 'absolute', top: '-18px', left: 0, fontSize: '0.65rem', background: '#10b981', color: '#111827', padding: '0.1rem 0.4rem', borderRadius: '0.25rem', fontWeight: 'bold' }}>Nhanh nhất</div>}
                                                 <div style={{ color: isCheapest ? '#10b981' : 'white', fontWeight: 'bold', fontSize: '1.125rem' }}>{quote.total_amount || 0} <span style={{ fontSize: '0.875rem', fontWeight: 'normal' }}>{quote.currency || 'USD'}</span></div>
-                                                {isCheapest && <div style={{ color: '#10b981', fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.05em' }}>CHEAPEST RATE</div>}
+                                                {isCheapest && <div style={{ color: '#10b981', fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.05em' }}>GIÁ RẺ NHẤT</div>}
                                             </div>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', alignItems: 'flex-end' }}>
-                                                <button style={{ width: '100%', padding: '0.4rem 0', background: '#10b981', color: '#111827', border: 'none', borderRadius: '0.375rem', fontWeight: 'bold', fontSize: '0.8125rem', cursor: 'pointer' }}>Book Now</button>
-                                                <button style={{ width: '100%', padding: '0.3rem 0', background: 'transparent', color: 'var(--text-dim)', border: '1px solid var(--text-dim)', borderRadius: '0.375rem', fontSize: '0.75rem', cursor: 'pointer' }}>Details</button>
+                                                <button style={{ width: '100%', padding: '0.4rem 0', background: '#10b981', color: '#111827', border: 'none', borderRadius: '0.375rem', fontWeight: 'bold', fontSize: '0.8125rem', cursor: 'pointer' }}>Đặt ngay</button>
+                                                <button style={{ width: '100%', padding: '0.3rem 0', background: 'transparent', color: 'var(--text-dim)', border: '1px solid var(--text-dim)', borderRadius: '0.375rem', fontSize: '0.75rem', cursor: 'pointer' }}>Chi tiết</button>
                                             </div>
                                         </div>
                                     )
@@ -513,15 +514,15 @@ const ComparativeDashboard: React.FC = () => {
                         {/* Analytic Insights */}
                         <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                <h3 style={{ fontSize: '1rem', fontWeight: 'bold', color: 'white' }}>Analytic Insights</h3>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 'bold', color: 'white' }}>Phân tích Chuyên sâu</h3>
                                 <FileText size={16} style={{ color: 'var(--text-dim)' }} />
                             </div>
 
                             {/* Dynamic Cost Comparison Chart */}
                             <div className="card" style={{ marginBottom: '1rem', padding: '1.25rem' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                                    <span>Price Comparison</span>
-                                    <span>Carrier vs Avg</span>
+                                    <span>So sánh Giá</span>
+                                    <span>Hãng vs Trung bình</span>
                                 </div>
                                 <div style={{ height: '80px', display: 'flex', alignItems: 'flex-end', gap: '4px' }}>
                                     {result.quotes.map((q: any, i: number) => (
@@ -543,7 +544,7 @@ const ComparativeDashboard: React.FC = () => {
 
                             {/* AI Verdicts & Negotiation Strategies */}
                             <div style={{ marginTop: '0.5rem' }}>
-                                <h3 style={{ fontSize: '1rem', fontWeight: 'bold', color: 'white', marginBottom: '1rem' }}>AI Verdicts</h3>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 'bold', color: 'white', marginBottom: '1rem' }}>Đánh giá từ AI</h3>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                     {result.ai_analysis.verdicts?.map((v: any, i: number) => (
                                         <div key={i} className="card" style={{ padding: '0.75rem', borderLeft: `4px solid ${v.verdict === 'Recommend' ? '#10b981' : v.verdict === 'Negotiate' ? '#f59e0b' : '#f43f5e'}` }}>
@@ -561,7 +562,7 @@ const ComparativeDashboard: React.FC = () => {
                                     ))}
                                 </div>
 
-                                <h3 style={{ fontSize: '1rem', fontWeight: 'bold', color: 'white', marginTop: '1.5rem', marginBottom: '1rem' }}>Negotiation Playbook</h3>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 'bold', color: 'white', marginTop: '1.5rem', marginBottom: '1rem' }}>Kế hoạch Đàm phán</h3>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                     {result.ai_analysis.negotiation_strategies?.map((s: any, i: number) => (
                                         <div key={i} className="card" style={{ padding: '1rem', background: 'rgba(99, 102, 241, 0.05)', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
@@ -602,7 +603,7 @@ const ComparativeDashboard: React.FC = () => {
                         </div>
                     </div>
                     <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', borderRadius: '1rem', background: result ? 'rgba(16, 185, 129, 0.15)' : 'rgba(99, 102, 241, 0.15)', color: result ? '#10b981' : '#818cf8' }}>
-                        {result ? 'Context Loaded' : 'No quotes yet'}
+                        {result ? 'Đã tải Dữ liệu' : 'Chưa có báo giá'}
                     </span>
                 </div>
 
@@ -660,7 +661,7 @@ const ComparativeDashboard: React.FC = () => {
                     animation: 'slideInRight 0.3s ease-out'
                 }}>
                     <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--brand-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>Data Traceability</h3>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>Truy xuất Nguồn dữ liệu</h3>
                         <button onClick={() => setTracePanelData(null)} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer' }}>
                             <XCircle size={24} />
                         </button>
