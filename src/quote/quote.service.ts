@@ -103,7 +103,15 @@ export class QuoteService {
         const aiResponse = await this.aiService.chat(analysisPrompt);
         let aiAnalysis: any;
         try {
-            const jsonStr = aiResponse.replace(/```json|```/g, '').trim();
+            let jsonStr = aiResponse.replace(/```json|```/g, '').trim();
+
+            // Tìm ngoặc nhọn đầu tiên và cuối cùng để trích xuất JSON thuần tuý
+            const firstBrace = jsonStr.indexOf('{');
+            const lastBrace = jsonStr.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+                jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+            }
+
             aiAnalysis = JSON.parse(jsonStr);
         } catch (e) {
             this.logger.error('Failed to parse AI analysis JSON. Raw response:', aiResponse);

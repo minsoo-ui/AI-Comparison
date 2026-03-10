@@ -30,7 +30,15 @@ export class ExtractService {
 
         try {
             const response = await this.aiService.chat(prompt);
-            const jsonStr = response.replace(/```json|```/g, '').trim();
+            let jsonStr = response.replace(/```json|```/g, '').trim();
+
+            // Tìm ngoặc nhọn đầu tiên và cuối cùng để trích xuất JSON thuần tuý, loại bỏ rác đính kèm
+            const firstBrace = jsonStr.indexOf('{');
+            const lastBrace = jsonStr.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+                jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+            }
+
             return JSON.parse(jsonStr);
         } catch (error) {
             this.logger.error('Error extracting data:', error);
