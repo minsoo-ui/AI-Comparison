@@ -98,7 +98,6 @@ export class QuoteService {
           this.quoteGateway.emitLog('success', 'LLM', `Structured data extracted for: ${item.fileName}`);
           return {
             ...extraction.data,
-            ...extraction.data,
             traceability: extraction.traceability,
             sourceFile: item.fileName, // Use base filename for easy cross-referencing in citations
           };
@@ -225,9 +224,10 @@ Mỗi hàng là một option từ báo giá. Nếu một file có nhiều option
 - Đưa ra lời khuyên cụ thể
 
 ### Insight thêm
-- Gợi ý đàm phán cụ thể
-- Cảnh báo về phí ẩn, mùa cao điểm, validity sắp hết
-- Lưu ý về sự khác biệt FCL vs LCL cho volume đã cho
+- Cung cấp ít nhất 3 lưu ý hoặc mẹo đàm phán cụ thể cho lô hàng này.
+- Cảnh báo về phí ẩn, rủi ro mùa cao điểm, hoặc hiệu lực báo giá sắp hết.
+- Tư vấn về phương thức vận chuyển (FCL vs LCL) dựa trên thể tích/trọng lượng thực tế.
+- PHẢI có nội dung tại đây, KHÔNG được để trống.
 
 QUAN TRỌNG VỀ TRÍCH DẪN NGUỒN (EVIDENCE TRACEABILITY):
 - Mỗi khi nêu một con số quan trọng (Carrier, Ocean Freight, Transit Time), PHẢI kèm theo trích dẫn nguồn ngay sau đó.

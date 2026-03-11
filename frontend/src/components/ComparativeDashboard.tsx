@@ -89,6 +89,7 @@ const ComparativeDashboard: React.FC = () => {
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     const abortControllerRef = useRef<AbortController | null>(null);
+    const abortChatRef = useRef<AbortController | null>(null);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // AI Health Status
@@ -303,6 +304,12 @@ const ComparativeDashboard: React.FC = () => {
         }
     };
 
+    const handleStopChat = () => {
+        if (abortChatRef.current) {
+            abortChatRef.current.abort();
+        }
+    };
+
     const handleSendMessage = async () => {
         if (!chatInput.trim()) return;
 
@@ -311,18 +318,28 @@ const ComparativeDashboard: React.FC = () => {
         setChatInput('');
         setIsChatting(true);
 
+        const controller = new AbortController();
+        abortChatRef.current = controller;
+
         try {
             const response = await axios.post('http://localhost:3001/quote/chat', {
                 message: userMsg,
                 history: chatMessages.slice(-6),
                 context: result || null,
+            }, {
+                signal: controller.signal
             });
             setChatMessages(prev => [...prev, { role: 'ai', content: response.data.reply }]);
         } catch (error) {
-            console.error('Chat failed', error);
-            setChatMessages(prev => [...prev, { role: 'ai', content: 'Xin lỗi, hệ thống AI đang bận. Vui lòng thử lại sau.' }]);
+            if (axios.isCancel(error)) {
+                setChatMessages(prev => [...prev, { role: 'ai', content: 'Dừng trả lời theo yêu cầu của người dùng.' }]);
+            } else {
+                console.error('Chat failed', error);
+                setChatMessages(prev => [...prev, { role: 'ai', content: 'Xin lỗi, hệ thống AI đang bận. Vui lòng thử lại sau.' }]);
+            }
         } finally {
             setIsChatting(false);
+            abortChatRef.current = null;
         }
     };
 
@@ -723,12 +740,20 @@ const ComparativeDashboard: React.FC = () => {
                         </div>
                     ))}
                     {isChatting && (
-                        <div style={{ display: 'flex', gap: '0.75rem', alignSelf: 'flex-start' }}>
+                        <div style={{ display: 'flex', gap: '0.75rem', alignSelf: 'flex-start', alignItems: 'center' }}>
                             <div style={{ flexShrink: 0, width: '24px', height: '24px', borderRadius: '0.25rem', background: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111827', fontSize: '0.65rem', fontWeight: 'bold' }}>AI</div>
-                            <div style={{ background: 'rgba(30, 41, 59, 0.8)', padding: '0.75rem', borderRadius: '0.5rem', borderTopLeftRadius: '0', color: 'var(--text-dim)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                <div className="typing-dot" style={{ width: '4px', height: '4px', background: 'currentColor', borderRadius: '50%', animation: 'typing 1.4s infinite ease-in-out both' }}></div>
-                                <div className="typing-dot" style={{ width: '4px', height: '4px', background: 'currentColor', borderRadius: '50%', animation: 'typing 1.4s infinite ease-in-out both', animationDelay: '0.2s' }}></div>
-                                <div className="typing-dot" style={{ width: '4px', height: '4px', background: 'currentColor', borderRadius: '50%', animation: 'typing 1.4s infinite ease-in-out both', animationDelay: '0.4s' }}></div>
+                            <div style={{ background: 'rgba(30, 41, 59, 0.8)', padding: '0.75rem', borderRadius: '0.5rem', borderTopLeftRadius: '0', color: 'var(--text-dim)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                <div style={{ display: 'flex', gap: '0.3rem' }}>
+                                    <div className="typing-dot" style={{ width: '4px', height: '4px', background: 'currentColor', borderRadius: '50%', animation: 'typing 1.4s infinite ease-in-out both' }}></div>
+                                    <div className="typing-dot" style={{ width: '4px', height: '4px', background: 'currentColor', borderRadius: '50%', animation: 'typing 1.4s infinite ease-in-out both', animationDelay: '0.2s' }}></div>
+                                    <div className="typing-dot" style={{ width: '4px', height: '4px', background: 'currentColor', borderRadius: '50%', animation: 'typing 1.4s infinite ease-in-out both', animationDelay: '0.4s' }}></div>
+                                </div>
+                                <button 
+                                    onClick={handleStopChat}
+                                    style={{ background: 'rgba(244, 63, 94, 0.1)', border: 'none', color: '#f43f5e', fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', cursor: 'pointer', fontWeight: 600 }}
+                                >
+                                    DỪNG
+                                </button>
                             </div>
                         </div>
                     )}

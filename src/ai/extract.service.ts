@@ -59,7 +59,7 @@ export class ExtractService {
         return JSON.parse(jsonStr);
       } catch (parseError) {
         this.logger.warn('Initial JSON.parse failed, attempting resilient repair...');
-        return this.repairJson(jsonStr, schema);
+        return this.repairJson(jsonStr, schema, contextText);
       }
     } catch (error) {
       this.logger.error('Error extracting data:', error);
@@ -67,10 +67,10 @@ export class ExtractService {
     }
   }
 
-  /**
+   /**
    * Resiliently extract fields using Regex if JSON parsing fails.
    */
-  private repairJson(jsonStr: string, schema: any): any {
+   private repairJson(jsonStr: string, schema: any, contextText: string): any {
     this.logger.log('Executing Regex-based emergency data salvage...');
     
     const result: any = {
@@ -94,9 +94,20 @@ export class ExtractService {
         } else {
           result.data[key] = val;
         }
-        result.traceability[key] = "Extracted via Regex Recovery";
+        
+        // Try to find a real snippet in the original contextText
+        try {
+          // Escape special regex chars in the value for safe searching
+          const escapedVal = val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const snippetRegex = new RegExp(`.{0,30}${escapedVal}.{0,30}`, 'i');
+          const snippetMatch = contextText.match(snippetRegex);
+          result.traceability[key] = snippetMatch ? snippetMatch[0].trim() : val;
+        } catch {
+          result.traceability[key] = val;
+        }
       } else {
         result.data[key] = schema[key] === 'number' ? 0 : 'N/A';
+        result.traceability[key] = 'N/A';
       }
     }
 
