@@ -15,10 +15,7 @@ export class AiService implements OnModuleInit {
   constructor(private configService: ConfigService) {}
 
   async onModuleInit() {
-    const apiBase =
-      this.configService.get<string>('LLM_API_BASE') ||
-      'http://localhost:11434/v1';
-    this.ollamaBaseUrl = apiBase.replace('/v1', '');
+    this.ollamaBaseUrl = 'http://127.0.0.1:11434'; // Use IP to avoid localhost resolution issues
     this.modelName = this.configService.get<string>('LLM_MODEL') || 'qwen3:4b';
 
     this.logger.log(
@@ -122,8 +119,12 @@ export class AiService implements OnModuleInit {
       clearTimeout(timer);
       const isTimeout = error.name === 'AbortError';
       this.logger.warn(
-        `LLM call ${isTimeout ? 'timed out after 60s' : 'failed'} (${error.message}), returning placeholder response.`,
+        `LLM call ${isTimeout ? 'timed out after 60s' : 'failed'} (${error.message})`,
       );
+      if (error.response) {
+        this.logger.warn(`Response status: ${error.response.status}`);
+        this.logger.warn(`Response data: ${JSON.stringify(error.response.data)}`);
+      }
 
       if (prompt.includes('Extract information')) {
         return JSON.stringify({
