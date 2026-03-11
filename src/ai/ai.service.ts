@@ -32,7 +32,8 @@ export class AiService implements OnModuleInit {
     this.llm = new ChatOllama({
       baseUrl: this.ollamaBaseUrl,
       model: this.modelName,
-      temperature: 0, // Force strict adherence to prompts, disable hallucination
+      temperature: 0,
+      repeatPenalty: 1.1, // Discourage repetitive generation
     });
 
     // Step 3: Initialize Qdrant
@@ -160,6 +161,7 @@ export class AiService implements OnModuleInit {
         model: this.modelName,
         temperature: 0,
         numPredict: 4096,
+        repeatPenalty: 1.1,
       });
       const response = await longLlm.invoke(prompt, { 
         callbacks,

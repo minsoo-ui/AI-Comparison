@@ -1,0 +1,96 @@
+{
+    "project": {
+        "name": "AI Comparison",
+        "description": "Logistics platform for automated quote comparison via AI/OCR.",
+        "created_at": "2026-03-10T09:23:05+07:00"
+    },
+    "tech_stack": {
+        "frontend": [
+            "React",
+            "Vite",
+            "Lucide React",
+            "Axios"
+        ],
+        "backend": [
+            "NestJS",
+            "LangChain",
+            "Qdrant",
+            "Ollama",
+            "PaddleOCR"
+        ],
+        "ai_models": [
+            "Qwen2.5:0.5b",
+            "Qwen3:0.6b",
+            "Qwen3:4b"
+        ]
+    },
+    "features": [
+        "PDF Quote Comparison with OCR (PaddleOCR)",
+        "Hybrid Quote Analysis (Stat Cards + Markdown Expert Report)",
+        "HSCode Calculation & Search",
+        "Analytic Insights (Cost Trend, Carrier Performance)",
+        "Logistics Co-Pilot (Persistent AI Chat)",
+        "AI Health Monitoring (Ollama Status Indicator)",
+        "Auto-start AI Service (ollama serve)",
+        "Robust AI JSON Extraction (Regex fallback)"
+    ],
+    "api_endpoints": [
+        {
+            "path": "/quote/compare",
+            "method": "POST",
+            "explained": "Extracts data from uploaded PDFs and generates a comparison analysis with anti-hallucination measures."
+        },
+        {
+            "path": "/quote/chat",
+            "method": "POST",
+            "explained": "Handles conversation with Logistics Co-Pilot within the context of quote analysis."
+        },
+        {
+            "path": "/health/ai",
+            "method": "GET",
+            "explained": "Returns the connectivity status and model name of the Ollama server."
+        }
+    ],
+    "decisions": [
+        {
+            "date": "2026-03-10",
+            "decision": "Sử dụng Microservices-like architecture trong cùng NestJS app.",
+            "rationale": "Dễ quản lý và kết nối dữ liệu nhanh giữa các module."
+        },
+        {
+            "date": "2026-03-10",
+            "decision": "Dùng CSS display:none cho Dashboard trong App.tsx.",
+            "rationale": "Giữ cho Dashboard luôn được mount giúp bảo toàn state và tránh mất dữ liệu khi chuyển tab."
+        },
+        {
+            "date": "2026-03-10",
+            "decision": "Auto-spawn ollama serve từ Backend.",
+            "rationale": "Giảm bớt thao tác thủ công cho người dùng, đảm bảo hệ thống AI luôn sẵn sàng."
+        },
+        {
+            "date": "2026-03-10",
+            "decision": "Regex JSON Extraction strategy in APIs",
+            "rationale": "Small LLMs (Qwen 0.5b) sometimes hallucinate conversational text around JSON. Extracting content via first `{` and last `}` prevents JSON.parse crashes."
+        },
+        {
+            "date": "2026-03-10",
+            "decision": "Zero Hallucination Policy (Temperature 0)",
+            "rationale": "Force AI to respond with N/A instead of inventing Carrier names or prices when parsing lacks data."
+        },
+        {
+            "date": "2026-03-11",
+            "decision": "OCR Segregated Output Pattern",
+            "rationale": "Using markers (--- CLEANED DATA ---) to separate clean tables from raw text, allowing LLM to target smaller context for extraction."
+        },
+        {
+            "date": "2026-03-11",
+            "decision": "Safety Timeouts (AbortController)",
+            "rationale": "Systemic hangs in LLM should not deadlock the Node.js server. 60s/120s limits ensure UI responsiveness."
+        },
+        {
+            "date": "2026-03-11",
+            "decision": "Lighter Model Strategy for low-RAM machines",
+            "rationale": "Switched to qwen3:0.6b because machine has only 1.7GB RAM free, insufficient for 4b model (2.5GB)."
+        }
+    ]
+}
