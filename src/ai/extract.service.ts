@@ -8,6 +8,22 @@ export class ExtractService {
   constructor(private aiService: AiService) {}
 
   async extractData(text: string, schema: any): Promise<any> {
+    // Performance Patch 2.0: Prioritize cleaned tables to reduce context size
+    let contextText = text;
+    const cleanMarker = '--- CLEANED DATA ---';
+    const endCleanMarker = '--- END CLEANED DATA ---';
+    
+    const startIdx = text.indexOf(cleanMarker);
+    const endIdx = text.indexOf(endCleanMarker);
+    
+    if (startIdx !== -1 && endIdx !== -1) {
+      this.logger.log('Optimizing extraction context: Using only cleaned table data.');
+      contextText = text.substring(startIdx + cleanMarker.length, endIdx).trim();
+    } else {
+      // If no cleaned data, at least truncate raw text to 8000 chars
+      contextText = text.substring(0, 8000);
+    }
+
     const prompt = `
       Extract information from the following shipping quote text based on the provided schema.
       
@@ -18,7 +34,7 @@ export class ExtractService {
       4. For each extracted field, provide the exact snippet from the text as 'source_snippet' in the 'traceability' object.
       5. ZERO HALLUCINATION POLICY: DO NOT invent, guess, or make up any data. Only extract what is explicitly written in the Text.
       
-      Text: "${text}"
+      Text Content: "${contextText}"
       Schema: ${JSON.stringify(schema)}
       
       Return as JSON with format:

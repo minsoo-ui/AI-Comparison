@@ -104,21 +104,31 @@ export class AiService implements OnModuleInit {
   }
 
   /**
-   * Invoke the LLM with optional tracing callbacks.
+   * Invoke the LLM with optional tracing callbacks and a safety timeout.
    */
   async chat(prompt: string, callbacks?: any[]): Promise<string> {
+    const timeout = 60000; // 60s timeout for standard chat
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+
     try {
-      const response = await this.llm.invoke(prompt, { callbacks });
+      const response = await this.llm.invoke(prompt, { 
+        callbacks,
+        signal: controller.signal 
+      });
+      clearTimeout(timer);
       return response.content.toString();
     } catch (error) {
+      clearTimeout(timer);
+      const isTimeout = error.name === 'AbortError';
       this.logger.warn(
-        `LLM call failed (${error.message}), returning placeholder response.`,
+        `LLM call ${isTimeout ? 'timed out after 60s' : 'failed'} (${error.message}), returning placeholder response.`,
       );
 
       if (prompt.includes('Extract information')) {
         return JSON.stringify({
           data: {
-            carrier: 'Không xác định',
+            carrier: 'N/A (Timeout)',
             total_amount: 0,
             currency: 'USD',
             origin: 'N/A',
@@ -127,15 +137,19 @@ export class AiService implements OnModuleInit {
           traceability: {},
         });
       }
-      return 'Xin lỗi, tôi không thể kết nối với bộ não AI lúc này. Vui lòng kiểm tra Ollama và thử lại nhé!';
+      return 'Xin lỗi, bộ não AI đang phản hồi chậm hoặc bận xử lý. Vui lòng thử lại sau giây lát!';
     }
   }
 
   /**
    * Extended chat method for generating long Markdown reports.
-   * Uses higher num_predict to allow the model to write comprehensive analyses.
+   * Uses higher num_predict and a longer timeout (120s).
    */
   async chatLong(prompt: string, callbacks?: any[]): Promise<string> {
+    const timeout = 120000; // 120s timeout for complex reports
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+
     try {
       const longLlm = new ChatOllama({
         baseUrl: this.ollamaBaseUrl,
@@ -143,11 +157,17 @@ export class AiService implements OnModuleInit {
         temperature: 0,
         numPredict: 4096,
       });
-      const response = await longLlm.invoke(prompt, { callbacks });
+      const response = await longLlm.invoke(prompt, { 
+        callbacks,
+        signal: controller.signal
+      });
+      clearTimeout(timer);
       return response.content.toString();
     } catch (error) {
-      this.logger.warn(`Long LLM call failed (${error.message})`);
-      return 'Xin lỗi, AI không thể tạo báo cáo phân tích lúc này. Vui lòng thử lại.';
+      clearTimeout(timer);
+      const isTimeout = error.name === 'AbortError';
+      this.logger.warn(`Long LLM call ${isTimeout ? 'timed out after 120s' : 'failed'} (${error.message})`);
+      return 'Xin lỗi, AI không thể hoàn thành báo cáo phân tích đúng hạn do dữ liệu quá lớn. Vui lòng thử lại.';
     }
   }
 

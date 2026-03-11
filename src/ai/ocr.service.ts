@@ -136,22 +136,21 @@ export class OcrService {
         await fs.remove(tmpInputPath);
         if (code !== 0) {
           this.logger.warn(`Cleaner failed (code ${code}): ${stderr}`);
-          resolve(inputText); // Fallback to raw text if cleaning fails
+          resolve(`--- RAW TEXT ---\n${inputText}\n--- END RAW TEXT ---`);
           return;
         }
         try {
           const cleaned = JSON.parse(stdout);
           if (Array.isArray(cleaned) && cleaned.length > 0) {
-            // Convert cleaned tables back to a dense format for LLM
             const tablesAsText = cleaned
               .map((table, i) => `[TABLE ${i + 1}]\n${JSON.stringify(table, null, 2)}`)
               .join('\n\n');
-            resolve(`${inputText}\n\n--- CLEANED DATA ---\n${tablesAsText}`);
+            resolve(`--- CLEANED DATA ---\n${tablesAsText}\n--- END CLEANED DATA ---\n\n--- RAW TEXT ---\n${inputText}\n--- END RAW TEXT ---`);
           } else {
-            resolve(inputText);
+            resolve(`--- RAW TEXT ---\n${inputText}\n--- END RAW TEXT ---`);
           }
         } catch {
-          resolve(inputText);
+          resolve(`--- RAW TEXT ---\n${inputText}\n--- END RAW TEXT ---`);
         }
       });
     });

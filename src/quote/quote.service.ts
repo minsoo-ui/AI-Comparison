@@ -70,7 +70,7 @@ export class QuoteService {
     );
     this.quoteGateway.emitLog('info', 'SYSTEM', `Classified: ${quoteItems.length} quotes found.`);
 
-    // ── STEP 3: Per-file structured extraction (parallel, fast → stat cards) ──
+    // ── STEP 3: Per-file structured extraction (batched to keep Ollama responsive) ──
     const quoteSchema = {
       carrier: 'string',
       origin: 'string',
@@ -81,21 +81,30 @@ export class QuoteService {
       valid_until: 'string',
     };
 
-    const structuredQuotes = await Promise.all(
-      quoteItems.map(async (item) => {
-        this.quoteGateway.emitLog('info', 'LLM', `Extracting structured data from: ${item.fileName}`);
-        const extraction = await this.extractService.extractData(
-          item.text,
-          quoteSchema,
-        );
-        this.quoteGateway.emitLog('success', 'LLM', `Structured data extracted for: ${item.fileName}`);
-        return {
-          ...extraction.data,
-          traceability: extraction.traceability,
-          sourceFile: item.path,
-        };
-      }),
-    );
+    const structuredQuotes: any[] = [];
+    const BATCH_SIZE = 2;
+    
+    for (let i = 0; i < quoteItems.length; i += BATCH_SIZE) {
+      const batch = quoteItems.slice(i, i + BATCH_SIZE);
+      this.logger.log(`Processing extraction batch ${Math.floor(i/BATCH_SIZE) + 1}...`);
+      
+      const batchResults = await Promise.all(
+        batch.map(async (item) => {
+          this.quoteGateway.emitLog('info', 'LLM', `Extracting structured data from: ${item.fileName}`);
+          const extraction = await this.extractService.extractData(
+            item.text,
+            quoteSchema,
+          );
+          this.quoteGateway.emitLog('success', 'LLM', `Structured data extracted for: ${item.fileName}`);
+          return {
+            ...extraction.data,
+            traceability: extraction.traceability,
+            sourceFile: item.path,
+          };
+        })
+      );
+      structuredQuotes.push(...batchResults);
+    }
 
     // ── STEP 4: Calculate stat card insights from structured data ──
     const summary = this.calculateInsights(structuredQuotes);
