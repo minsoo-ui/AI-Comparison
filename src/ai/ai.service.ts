@@ -15,7 +15,10 @@ export class AiService implements OnModuleInit {
   constructor(private configService: ConfigService) {}
 
   async onModuleInit() {
-    this.ollamaBaseUrl = 'http://127.0.0.1:11434'; // Use IP to avoid localhost resolution issues
+    const apiBase =
+      this.configService.get<string>('LLM_API_BASE') ||
+      'http://127.0.0.1:11434/v1';
+    this.ollamaBaseUrl = apiBase.replace('/v1', '').replace('localhost', '127.0.0.1');
     this.modelName = this.configService.get<string>('LLM_MODEL') || 'qwen3:4b';
 
     this.logger.log(
