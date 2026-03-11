@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { TrendingUp, FileText, Zap, UploadCloud, XCircle, Timer, AlertCircle, Send, Bot, Copy, Check, Terminal } from 'lucide-react';
+import { TrendingUp, FileText, Zap, UploadCloud, XCircle, Timer, AlertCircle, Send, Bot, Copy, Check, Terminal, Search } from 'lucide-react';
+import SourceFileViewer from './SourceFileViewer';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import axios from 'axios';
@@ -93,8 +94,9 @@ const ComparativeDashboard: React.FC = () => {
     // AI Health Status
     const [aiStatus, setAiStatus] = useState<{ online: boolean; model: string }>({ online: false, model: 'unknown' });
 
-    // Traceability Panel State
+    // Traceability & PDF View State
     const [tracePanelData, setTracePanelData] = useState<any>(null); 
+    const [viewingFile, setViewingFile] = useState<string | null>(null);
 
     // UX State
     const [isCopied, setIsCopied] = useState(false);
@@ -597,11 +599,90 @@ const ComparativeDashboard: React.FC = () => {
 
                     {/* Markdown Report */}
                     <div className="markdown-report">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        <ReactMarkdown 
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                                // Custom renderer for [Nguồn: "...", file: "..."] pattern
+                                text: ({ node, ...props }) => {
+                                    const content = props.children as string;
+                                    // Match pattern: [Nguồn: "quoted text", file: "filename.pdf"]
+                                    const regex = /\[Nguồn:\s*"([^"]+)",\s*file:\s*"([^"]+)"\]/g;
+                                    
+                                    if (typeof content !== 'string' || !regex.test(content)) {
+                                        return <>{content}</>;
+                                    }
+
+                                    const parts = [];
+                                    let lastIndex = 0;
+                                    let match;
+
+                                    // Reset regex index for multiple matches in same block
+                                    regex.lastIndex = 0;
+
+                                    while ((match = regex.exec(content)) !== null) {
+                                        // Push text before match
+                                        if (match.index > lastIndex) {
+                                            parts.push(content.substring(lastIndex, match.index));
+                                        }
+
+                                        const sourceText = match[1];
+                                        const fileName = match[2];
+
+                                        // Push the interactive citation
+                                        parts.push(
+                                            <span 
+                                                key={match.index}
+                                                onClick={() => setViewingFile(fileName)}
+                                                style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.25rem',
+                                                    background: 'rgba(99, 102, 241, 0.1)',
+                                                    border: '1px solid rgba(99, 102, 241, 0.3)',
+                                                    borderRadius: '0.25rem',
+                                                    padding: '0.1rem 0.4rem',
+                                                    margin: '0 0.2rem',
+                                                    fontSize: '0.75rem',
+                                                    color: '#818cf8',
+                                                    cursor: 'pointer',
+                                                    fontWeight: 500,
+                                                    transition: 'all 0.2s',
+                                                    verticalAlign: 'middle'
+                                                }}
+                                                className="hover:bg-indigo-500/20 hover:border-indigo-400"
+                                                title={`Xem file gốc: ${fileName}`}
+                                            >
+                                                <Search size={10} />
+                                                <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {sourceText.length > 20 ? sourceText.substring(0, 20) + '...' : sourceText}
+                                                </span>
+                                            </span>
+                                        );
+
+                                        lastIndex = regex.lastIndex;
+                                    }
+
+                                    // Push remaining text
+                                    if (lastIndex < content.length) {
+                                        parts.push(content.substring(lastIndex));
+                                    }
+
+                                    return <>{parts}</>;
+                                }
+                            }}
+                        >
                             {result.markdown_report || 'Không có báo cáo phân tích.'}
                         </ReactMarkdown>
                     </div>
                 </div>
+            )}
+
+            {/* Source File Viewer Modal */}
+            {viewingFile && (
+                <SourceFileViewer 
+                    filename={viewingFile} 
+                    onClose={() => setViewingFile(null)} 
+                />
             )}
 
             {/* AI CHAT - ALWAYS VISIBLE */}

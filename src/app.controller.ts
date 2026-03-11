@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Body, Logger, Param, Res } from '@nestjs/common';
 import { AppService } from './app.service';
 import { SpecialTermsService } from './ai/special-terms.service';
 import { ExtractService } from './ai/extract.service';
@@ -53,6 +53,18 @@ export class AppController {
     );
 
     return fileStats;
+  }
+
+  @Get('database/files/:filename')
+  async getFile(@Param('filename') filename: string, @Res() res: any) {
+    const folderPath = path.join(process.cwd(), 'data', 'special_terms');
+    const filePath = path.join(folderPath, filename);
+    
+    if (await fs.pathExists(filePath)) {
+      res.sendFile(filePath);
+    } else {
+      res.status(404).send('File not found');
+    }
   }
 
   @Get('database/trash')

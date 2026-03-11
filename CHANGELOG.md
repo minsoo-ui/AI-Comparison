@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-03-11v2] - Stability & Repetition Fix
+### Added
+- **Expert Report Repetition Mitigation**: Implemented `repeatPenalty: 1.1` and `deduplicateText` regex post-processing in `QuoteService` to prevent "Phụ phí" repetition loops.
+- **Resilient JSON Recovery**: Developed `repairJson` logic in `ExtractService` using a regex-based fallback to salvage data from syntactically malformed LLM outputs.
+- **Flexible LLM Options**: Updated `AiService` to support dynamic overrides for `repeatPenalty`, `numPredict`, and `temperature` on a per-call basis.
+
+### Fixed
+- **Insight Duplication**: Resolved issue where LLM would loop indefinitely while listing surcharges in the Expert Report.
+- **JSON SyntaxError**: Fixed crash caused by `repeatPenalty` interfering with JSON punctuation in small models by disabling the penalty for structured extraction calls.
+
 ## [2026-03-11]
 ### Added
 - **Performance Patch 2.0**: Optimization for high-load analysis.

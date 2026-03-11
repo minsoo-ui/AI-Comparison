@@ -98,8 +98,9 @@ export class QuoteService {
           this.quoteGateway.emitLog('success', 'LLM', `Structured data extracted for: ${item.fileName}`);
           return {
             ...extraction.data,
+            ...extraction.data,
             traceability: extraction.traceability,
-            sourceFile: item.path,
+            sourceFile: item.fileName, // Use base filename for easy cross-referencing in citations
           };
         })
       );
@@ -127,7 +128,7 @@ export class QuoteService {
       quoteTextsBlock,
       allTerms,
       rfqContext,
-      quoteItems.length,
+      structuredQuotes,
     );
 
     this.logger.log('Generating Markdown expert report via chatLong...');
@@ -169,8 +170,18 @@ export class QuoteService {
     quoteTexts: string,
     terms: string,
     rfqContext: string,
-    quoteCount: number,
+    structuredQuotes: any[],
   ): string {
+    const quoteCount = structuredQuotes.length;
+    // Prepare a summary of extracted data for LLM to use as ground truth for citations
+    const groundTruth = structuredQuotes.map((q, i) => {
+      return `BÁO GIÁ #${i+1} (${q.sourceFile}): 
+- Carrier: ${q.carrier} (Nguồn trích dẫn: "${q.traceability?.carrier || 'N/A'}")
+- Ocean Freight: ${q.total_amount} ${q.currency} (Nguồn trích dẫn: "${q.traceability?.total_amount || 'N/A'}")
+- Transit Time: ${q.transit_time_days} days (Nguồn trích dẫn: "${q.traceability?.transit_time_days || 'N/A'}")
+- Validity: ${q.valid_until} (Nguồn trích dẫn: "${q.traceability?.valid_until || 'N/A'}")`;
+    }).join('\n\n');
+
     return `/no_think
 Bạn là một CHUYÊN GIA LOGISTICS cao cấp với hơn 15 năm kinh nghiệm trong ngành vận tải biển quốc tế.
 
@@ -183,6 +194,9 @@ ${terms || 'Không có thuật ngữ bổ sung.'}
 
 ## CÁC BÁO GIÁ CẦN PHÂN TÍCH:
 ${quoteTexts}
+
+## DỮ LIỆU ĐÃ TRÍCH XUẤT (Dùng để lấy văn bản gốc làm dẫn chứng):
+${groundTruth}
 
 ## YÊU CẦU BÁO CÁO:
 
@@ -215,7 +229,10 @@ Mỗi hàng là một option từ báo giá. Nếu một file có nhiều option
 - Cảnh báo về phí ẩn, mùa cao điểm, validity sắp hết
 - Lưu ý về sự khác biệt FCL vs LCL cho volume đã cho
 
-QUAN TRỌNG:
+QUAN TRỌNG VỀ TRÍCH DẪN NGUỒN (EVIDENCE TRACEABILITY):
+- Mỗi khi nêu một con số quan trọng (Carrier, Ocean Freight, Transit Time), PHẢI kèm theo trích dẫn nguồn ngay sau đó.
+- Định dạng trích dẫn: \`[Nguồn: "text gốc", file: "tên_file.pdf"]\`
+- Ví dụ: "...mức giá **450 USD** [Nguồn: "Freight: 450USD/CTR", file: "FedEx_Quote.pdf"]..."
 - TUYỆT ĐỐI KHÔNG BỊA ĐẶT số liệu hoặc tên hãng tàu
 - TUYỆT ĐỐI KHÔNG lặp lại cùng một thông tin nhiều lần.
 - Nếu thông tin không có trong file, ghi rõ "Không chỉ định" hoặc "Không có dữ liệu"
