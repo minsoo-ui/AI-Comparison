@@ -2,10 +2,17 @@ import React, { useState } from 'react';
 import { Search, Loader2, Calculator, ShieldCheck } from 'lucide-react';
 import axios from 'axios';
 
+interface HSCodeResultData {
+    item: string;
+    suggestedHSCode: string;
+    confidence: number;
+    taxRate: string;
+}
+
 const HSCodeSearch: React.FC = () => {
     const [query, setQuery] = useState('');
     const [loading, setLoading] = useState(false);
-    const [result, setResult] = useState<any>(null);
+    const [result, setResult] = useState<HSCodeResultData | null>(null);
 
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();

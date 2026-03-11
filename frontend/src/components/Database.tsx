@@ -3,14 +3,24 @@ import { createPortal } from 'react-dom';
 import { Database as DatabaseIcon, FileText, Clock, HardDrive, ShieldCheck, MoreVertical, Plus, FolderOpen, Trash2, Loader2 } from 'lucide-react';
 import axios from 'axios';
 
+interface FileItem {
+    id: number;
+    name: string;
+    description: string;
+    size: string;
+    updatedAt: string;
+    deletedAt?: string;
+    status: 'Active' | 'Draft';
+}
+
 const Database: React.FC = () => {
-    const [files, setFiles] = useState<any[]>([]);
+    const [files, setFiles] = useState<FileItem[]>([]);
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [openMenuId, setOpenMenuId] = useState<number | null>(null);
     const [menuPosition, setMenuPosition] = useState<{ x: number, y: number } | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [showTrash, setShowTrash] = useState(false);
-    const [trashFiles, setTrashFiles] = useState<any[]>([]);
+    const [trashFiles, setTrashFiles] = useState<FileItem[]>([]);
     const [selectedTrashIds, setSelectedTrashIds] = useState<number[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -18,7 +28,7 @@ const Database: React.FC = () => {
         try {
             const res = await axios.get('http://localhost:3001/database/files');
             // Sort to show latest first
-            const sortedFiles = res.data.sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+            const sortedFiles = (res.data as FileItem[]).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
             setFiles(sortedFiles);
         } catch (error) {
             console.error('Failed to fetch files', error);

@@ -1,8 +1,38 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { TrendingUp, FileText, Zap, UploadCloud, XCircle, Timer, AlertCircle, Send, Bot, Copy, Check } from 'lucide-react';
+import { TrendingUp, FileText, Zap, UploadCloud, XCircle, Timer, AlertCircle, Send, Bot, Copy, Check, Terminal } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import axios from 'axios';
+import { io, Socket } from 'socket.io-client';
+
+interface QuoteLog {
+    timestamp: string;
+    level: 'info' | 'warn' | 'error' | 'success';
+    stage: 'OCR' | 'CLEAN' | 'LLM' | 'SYSTEM';
+    message: string;
+}
+
+interface FileClassification {
+    quotes: string[];
+    rfq: number;
+    common_terms: number;
+}
+
+interface AnalysisResult {
+    file_classification: FileClassification;
+    markdown_report: string;
+    stats?: {
+        cheapest_carrier: string;
+        potential_savings: string;
+        fastest_transit: string;
+    };
+    [key: string]: any; // Allow for other fields
+}
+
+interface ChatMessage {
+    role: 'user' | 'ai';
+    content: string;
+}
 
 const ComparativeDashboard: React.FC = () => {
     const [files, setFiles] = useState<File[]>([]);
@@ -10,42 +40,45 @@ const ComparativeDashboard: React.FC = () => {
     const [uploadProgress, setUploadProgress] = useState(0);
     const [aiProgress, setAiProgress] = useState(0);
     const [aiTime, setAiTime] = useState(0);
+    const [processingLogs, setProcessingLogs] = useState<QuoteLog[]>([]);
+    const socketRef = useRef<Socket | null>(null);
+    const logContainerRef = useRef<HTMLDivElement>(null);
 
     // Init state from localStorage - survives F5 refresh
-    const [result, setResult] = useState<any>(() => {
+    const [result, setResult] = useState<AnalysisResult | null>(() => {
         try {
             const saved = localStorage.getItem('comparative_result');
             if (saved) {
                 console.log('[Dashboard] Restored result from localStorage');
                 return JSON.parse(saved);
             }
-        } catch (e) { console.warn('[Dashboard] Failed to parse saved result:', e); }
+        } catch { console.warn('[Dashboard] Failed to parse saved result from localStorage'); }
         return null;
     });
     const [savedFileNames, setSavedFileNames] = useState<string[]>(() => {
         try {
             const saved = localStorage.getItem('comparative_files');
             if (saved) return JSON.parse(saved);
-        } catch (e) { /* ignore */ }
+        } catch { /* ignore */ }
         return [];
     });
     const [errorMsg, setErrorMsg] = useState('');
     const [isConfirmingClear, setIsConfirmingClear] = useState(false);
 
     // AI Chat State
-    const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'ai', content: string }[]>(() => {
+    const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
         try {
             const saved = localStorage.getItem('comparative_chat');
             if (saved) {
                 const parsed = JSON.parse(saved);
                 // Clean out old Mock Mode messages from cache
-                const cleaned = parsed.filter((m: any) =>
+                const cleaned = parsed.filter((m: ChatMessage) =>
                     !m.content.toLowerCase().includes('mock mode') &&
                     !m.content.toLowerCase().includes('chế độ thử nghiệm')
                 );
                 if (cleaned.length > 0) return cleaned;
             }
-        } catch (e) { /* ignore */ }
+        } catch { /* ignore */ }
         return [
             { role: 'ai', content: 'Xin chào! Tôi là Logistics Co-Pilot. Bạn cần hỏi gì về báo giá?' }
         ];
@@ -61,10 +94,32 @@ const ComparativeDashboard: React.FC = () => {
     const [aiStatus, setAiStatus] = useState<{ online: boolean; model: string }>({ online: false, model: 'unknown' });
 
     // Traceability Panel State
-    const [tracePanelData, setTracePanelData] = useState<any>(null);
+    const [tracePanelData, setTracePanelData] = useState<any>(null); 
 
     // UX State
     const [isCopied, setIsCopied] = useState(false);
+
+    // WebSocket connection
+    useEffect(() => {
+        const socket = io('http://localhost:3001');
+        socketRef.current = socket;
+
+        socket.on('connect', () => console.log('[Socket] Connected to backend logs'));
+        socket.on('quote_log', (log: QuoteLog) => {
+            setProcessingLogs(prev => [...prev, log].slice(-50));
+        });
+
+        return () => {
+            socket.disconnect();
+        };
+    }, []);
+
+    // Auto-scroll logs
+    useEffect(() => {
+        if (logContainerRef.current) {
+            logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+        }
+    }, [processingLogs]);
 
     // Ping AI health check on mount + every 30s
     useEffect(() => {
@@ -156,6 +211,12 @@ const ComparativeDashboard: React.FC = () => {
         setAiTime(0);
         setResult(null);
         setErrorMsg('');
+        setProcessingLogs([{
+            timestamp: new Date().toISOString(),
+            level: 'info',
+            stage: 'SYSTEM',
+            message: 'Initializing comparison pipeline...'
+        }]);
 
         const abortController = new AbortController();
         abortControllerRef.current = abortController;
@@ -422,6 +483,33 @@ const ComparativeDashboard: React.FC = () => {
                                 <p style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '0.5rem', fontStyle: 'italic', textAlign: 'center' }}>
                                     {aiProgress === 100 ? 'Đã hoàn tất phân tích!' : aiProgress > 80 ? 'Đang tổng hợp thông tin...' : aiProgress > 30 ? 'Đang phân tích điều khoản...' : 'Đang trích xuất dữ liệu...'}
                                 </p>
+                            </div>
+
+                            {/* Processing Logs Console */}
+                            <div style={{ background: '#020617', border: '1px solid #1e293b', borderRadius: '0.5rem', display: 'flex', flexDirection: 'column' }}>
+                                <div style={{ background: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.75rem', borderTopLeftRadius: '0.4rem', borderTopRightRadius: '0.4rem' }}>
+                                    <Terminal size={12} style={{ color: '#818cf8' }} />
+                                    <span style={{ fontSize: '0.7rem', fontWeight: 'bold', color: 'white', letterSpacing: '0.05em' }}>PROCESSING LOGS</span>
+                                </div>
+                                <div 
+                                    ref={logContainerRef}
+                                    style={{ height: '120px', overflowY: 'auto', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.3rem', fontFamily: 'monospace', fontSize: '0.7rem' }}
+                                >
+                                    {processingLogs.length === 0 && (
+                                        <div style={{ color: '#475569', fontStyle: 'italic' }}>Waiting for logs...</div>
+                                    )}
+                                    {processingLogs.map((log, i) => (
+                                        <div key={i} style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <span style={{ color: '#475569', flexShrink: 0 }}>[{new Date(log.timestamp).toLocaleTimeString([], { hour12: false })}]</span>
+                                            <span style={{ 
+                                                color: log.level === 'error' ? '#f43f5e' : log.level === 'warn' ? '#fbbf24' : log.level === 'success' ? '#10b981' : '#818cf8',
+                                                fontWeight: 'bold',
+                                                flexShrink: 0
+                                            }}>[{log.stage}]</span>
+                                            <span style={{ color: '#94a3b8' }}>{log.message}</span>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     )}

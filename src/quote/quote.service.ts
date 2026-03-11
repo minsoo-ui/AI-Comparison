@@ -4,108 +4,164 @@ import { OcrService } from '../ai/ocr.service';
 import { ExtractService } from '../ai/extract.service';
 import { SpecialTermsService } from '../ai/special-terms.service';
 import { AiService } from '../ai/ai.service';
+import { QuoteGateway } from './quote.gateway';
 import * as path from 'path';
 
 @Injectable()
 export class QuoteService {
-    private readonly logger = new Logger(QuoteService.name);
+  private readonly logger = new Logger(QuoteService.name);
 
-    constructor(
-        private uploadService: UploadService,
-        private ocrService: OcrService,
-        private extractService: ExtractService,
-        private specialTermsService: SpecialTermsService,
-        private aiService: AiService,
-    ) { }
+  constructor(
+    private uploadService: UploadService,
+    private ocrService: OcrService,
+    private extractService: ExtractService,
+    private specialTermsService: SpecialTermsService,
+    private aiService: AiService,
+    private quoteGateway: QuoteGateway,
+  ) {}
 
-    async compareQuotes(filePaths: string[]): Promise<any> {
-        this.logger.log(`Comparing ${filePaths.length} quotes...`);
+  async compareQuotes(filePaths: string[]): Promise<any> {
+    this.logger.log(`Comparing ${filePaths.length} quotes...`);
+    this.quoteGateway.emitLog('info', 'SYSTEM', `Starting comparison for ${filePaths.length} files...`);
 
-        // ── STEP 1: OCR — Extract raw text from ALL files (parallel) ──
-        const rawTexts = await Promise.all(
-            filePaths.map(async (filePath) => {
-                const buffer = await this.uploadService.getFileContent(filePath);
-                const fileName = path.basename(filePath);
-                const text = await this.ocrService.extractText(buffer, fileName);
-                return { path: filePath, fileName, text };
-            })
+    // ── STEP 1: OCR — Extract raw text from ALL files (parallel) ──
+    const rawTexts = await Promise.all(
+      filePaths.map(async (filePath) => {
+        const buffer = await this.uploadService.getFileContent(filePath);
+        const fileName = path.basename(filePath);
+        this.quoteGateway.emitLog('info', 'OCR', `Processing file: ${fileName}`);
+        const text = await this.ocrService.extractText(buffer, fileName);
+        this.quoteGateway.emitLog('success', 'OCR', `Extracted & Cleaned: ${fileName}`);
+        return { path: filePath, fileName, text };
+      }),
+    );
+
+    // ── STEP 2: Classify files ──
+    const commonTermsTexts: string[] = [];
+    const rfqTexts: string[] = [];
+    const quoteItems: typeof rawTexts = [];
+
+    for (const item of rawTexts) {
+      const lowerName = item.fileName.toLowerCase();
+      if (
+        lowerName.includes('common') ||
+        lowerName.includes('term') ||
+        lowerName.includes('thuật ngữ')
+      ) {
+        commonTermsTexts.push(
+          `--- Thuật ngữ từ "${item.fileName}" ---\n${item.text}`,
         );
-
-        // ── STEP 2: Classify files ──
-        const commonTermsTexts: string[] = [];
-        const rfqTexts: string[] = [];
-        const quoteItems: typeof rawTexts = [];
-
-        for (const item of rawTexts) {
-            const lowerName = item.fileName.toLowerCase();
-            if (lowerName.includes('common') || lowerName.includes('term') || lowerName.includes('thuật ngữ')) {
-                commonTermsTexts.push(`--- Thuật ngữ từ "${item.fileName}" ---\n${item.text}`);
-            } else if (lowerName.includes('hỏi cước') || lowerName.includes('thông tin') || lowerName.includes('rfq') || lowerName.includes('request')) {
-                rfqTexts.push(`--- Yêu cầu hỏi cước từ "${item.fileName}" ---\n${item.text}`);
-            } else {
-                quoteItems.push(item);
-            }
-        }
-
-        this.logger.log(`Classified: ${commonTermsTexts.length} terms, ${rfqTexts.length} RFQ, ${quoteItems.length} quotes`);
-
-        // ── STEP 3: Per-file structured extraction (parallel, fast → stat cards) ──
-        const quoteSchema = {
-            carrier: 'string',
-            origin: 'string',
-            destination: 'string',
-            total_amount: 'number',
-            currency: 'string',
-            transit_time_days: 'number',
-            valid_until: 'string',
-        };
-
-        const structuredQuotes = await Promise.all(
-            quoteItems.map(async (item) => {
-                const extraction = await this.extractService.extractData(item.text, quoteSchema);
-                return {
-                    ...extraction.data,
-                    traceability: extraction.traceability,
-                    sourceFile: item.path,
-                };
-            })
+      } else if (
+        lowerName.includes('hỏi cước') ||
+        lowerName.includes('thông tin') ||
+        lowerName.includes('rfq') ||
+        lowerName.includes('request')
+      ) {
+        rfqTexts.push(
+          `--- Yêu cầu hỏi cước từ "${item.fileName}" ---\n${item.text}`,
         );
-
-        // ── STEP 4: Calculate stat card insights from structured data ──
-        const summary = this.calculateInsights(structuredQuotes);
-
-        // ── STEP 5: Build context and generate Markdown expert report ──
-        const staticTerms = this.specialTermsService.getTermsContent();
-        const allTerms = [staticTerms, ...commonTermsTexts].filter(Boolean).join('\n\n');
-        const rfqContext = rfqTexts.join('\n\n');
-
-        const quoteTextsBlock = quoteItems.map((item, i) =>
-            `=== BÁO GIÁ #${i + 1}: "${item.fileName}" ===\n${item.text}\n=== KẾT THÚC BÁO GIÁ #${i + 1} ===`
-        ).join('\n\n');
-
-        const analysisPrompt = this.buildAnalysisPrompt(quoteTextsBlock, allTerms, rfqContext, quoteItems.length);
-
-        this.logger.log('Generating Markdown expert report via chatLong...');
-        const markdownReport = await this.aiService.chatLong(analysisPrompt);
-
-        // ── STEP 6: Return combined result ──
-        return {
-            summary,
-            quotes: structuredQuotes,
-            markdown_report: markdownReport,
-            file_classification: {
-                common_terms: commonTermsTexts.length,
-                rfq: rfqTexts.length,
-                quotes: quoteItems.map(q => q.fileName),
-            },
-        };
+      } else {
+        quoteItems.push(item);
+      }
     }
 
-    /**
-     * Build the expert analysis prompt for generating a Markdown report.
-     */
-    private buildAnalysisPrompt(quoteTexts: string, terms: string, rfqContext: string, quoteCount: number): string {
-        return `/no_think
+    this.logger.log(
+      `Classified: ${commonTermsTexts.length} terms, ${rfqTexts.length} RFQ, ${quoteItems.length} quotes`,
+    );
+    this.quoteGateway.emitLog('info', 'SYSTEM', `Classified: ${quoteItems.length} quotes found.`);
+
+    // ── STEP 3: Per-file structured extraction (parallel, fast → stat cards) ──
+    const quoteSchema = {
+      carrier: 'string',
+      origin: 'string',
+      destination: 'string',
+      total_amount: 'number',
+      currency: 'string',
+      transit_time_days: 'number',
+      valid_until: 'string',
+    };
+
+    const structuredQuotes = await Promise.all(
+      quoteItems.map(async (item) => {
+        this.quoteGateway.emitLog('info', 'LLM', `Extracting structured data from: ${item.fileName}`);
+        const extraction = await this.extractService.extractData(
+          item.text,
+          quoteSchema,
+        );
+        this.quoteGateway.emitLog('success', 'LLM', `Structured data extracted for: ${item.fileName}`);
+        return {
+          ...extraction.data,
+          traceability: extraction.traceability,
+          sourceFile: item.path,
+        };
+      }),
+    );
+
+    // ── STEP 4: Calculate stat card insights from structured data ──
+    const summary = this.calculateInsights(structuredQuotes);
+
+    // ── STEP 5: Build context and generate Markdown expert report ──
+    const staticTerms = this.specialTermsService.getTermsContent();
+    const allTerms = [staticTerms, ...commonTermsTexts]
+      .filter(Boolean)
+      .join('\n\n');
+    const rfqContext = rfqTexts.join('\n\n');
+
+    const quoteTextsBlock = quoteItems
+      .map(
+        (item, i) =>
+          `=== BÁO GIÁ #${i + 1}: "${item.fileName}" ===\n${item.text}\n=== KẾT THÚC BÁO GIÁ #${i + 1} ===`,
+      )
+      .join('\n\n');
+
+    const analysisPrompt = this.buildAnalysisPrompt(
+      quoteTextsBlock,
+      allTerms,
+      rfqContext,
+      quoteItems.length,
+    );
+
+    this.logger.log('Generating Markdown expert report via chatLong...');
+    this.quoteGateway.emitLog('info', 'LLM', 'Generating final expert comparison report...');
+
+    // Implement LangChain callbacks for tracing
+    const callbacks = [
+      {
+        handleLLMStart: () => this.quoteGateway.emitLog('info', 'LLM', 'AI Analysis started...'),
+        handleLLMNewToken: (token: string) => {
+          // Optional: handle streaming tokens if needed
+        },
+        handleLLMEnd: () => this.quoteGateway.emitLog('success', 'LLM', 'AI Analysis complete.'),
+        handleLLMError: (err: any) => this.quoteGateway.emitLog('error', 'LLM', `AI Error: ${err.message}`),
+      },
+    ];
+
+    const markdownReport = await this.aiService.chatLong(analysisPrompt, callbacks);
+    this.quoteGateway.emitLog('success', 'SYSTEM', 'Comparison finished successfully.');
+
+    // ── STEP 6: Return combined result ──
+    return {
+      summary,
+      quotes: structuredQuotes,
+      markdown_report: markdownReport,
+      file_classification: {
+        common_terms: commonTermsTexts.length,
+        rfq: rfqTexts.length,
+        quotes: quoteItems.map((q) => q.fileName),
+      },
+    };
+  }
+
+  /**
+   * Build the expert analysis prompt for generating a Markdown report.
+   */
+  private buildAnalysisPrompt(
+    quoteTexts: string,
+    terms: string,
+    rfqContext: string,
+    quoteCount: number,
+  ): string {
+    return `/no_think
 Bạn là một CHUYÊN GIA LOGISTICS cao cấp với hơn 15 năm kinh nghiệm trong ngành vận tải biển quốc tế.
 
 NHIỆM VỤ: Phân tích ${quoteCount} báo giá vận chuyển dưới đây và viết một BÁO CÁO PHÂN TÍCH CHI TIẾT bằng tiếng Việt.
@@ -155,67 +211,77 @@ QUAN TRỌNG:
 - Tất cả nội dung PHẢI BẰNG TIẾNG VIỆT
 - Trả về DUY NHẤT nội dung Markdown, KHÔNG kèm lời giải thích bên ngoài
 `;
+  }
+
+  /**
+   * Calculate stat card insights from per-file structured extraction data.
+   */
+  private calculateInsights(quotes: any[]) {
+    if (quotes.length === 0) return null;
+
+    const validQuotes = quotes.filter((q) => q.total_amount > 0);
+    const prices = validQuotes.map((q) => q.total_amount);
+    const avgPrice =
+      prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0;
+    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+
+    const cheapest = [...validQuotes].sort(
+      (a, b) => a.total_amount - b.total_amount,
+    )[0];
+    const fastest = [...validQuotes].sort(
+      (a, b) => a.transit_time_days - b.transit_time_days,
+    )[0];
+
+    const outliers = validQuotes.filter((q) => q.total_amount > avgPrice * 1.5);
+    const savingPotential =
+      maxPrice > 0 && cheapest ? maxPrice - cheapest.total_amount : 0;
+
+    return {
+      total_quotes: quotes.length,
+      average_price: avgPrice,
+      cheapest_carrier: cheapest?.carrier,
+      cheapest_price: cheapest?.total_amount,
+      fastest_carrier: fastest?.carrier,
+      fastest_days: fastest?.transit_time_days,
+      outlier_warnings: outliers.map((q) => q.carrier),
+      saving_potential: savingPotential,
+      currency: cheapest?.currency || 'USD',
+    };
+  }
+
+  /**
+   * Chat with AI about the quotes context (Logistics Co-Pilot).
+   */
+  async chatWithQuotesContext(
+    message: string,
+    history: { role: string; content: string }[],
+    context: any,
+  ): Promise<{ reply: string }> {
+    this.logger.log(`Chat request: "${message.substring(0, 50)}..."`);
+
+    // Use markdown_report as primary context if available
+    let contextSummary: string;
+    if (context?.markdown_report) {
+      contextSummary = `\nDưới đây là báo cáo phân tích báo giá:\n${context.markdown_report}`;
+    } else if (context) {
+      contextSummary = `\nDữ liệu phân tích:\n${JSON.stringify(context, null, 2)}`;
+    } else {
+      contextSummary = '\nChưa có dữ liệu phân tích báo giá.';
     }
 
-    /**
-     * Calculate stat card insights from per-file structured extraction data.
-     */
-    private calculateInsights(quotes: any[]) {
-        if (quotes.length === 0) return null;
+    const cleanHistory = history
+      .filter(
+        (m) =>
+          !m.content.toLowerCase().includes('mock mode') &&
+          !m.content.toLowerCase().includes('chế độ thử nghiệm'),
+      )
+      .slice(-6);
 
-        const validQuotes = quotes.filter(q => q.total_amount > 0);
-        const prices = validQuotes.map(q => q.total_amount);
-        const avgPrice = prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0;
-        const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+    const recentHistory = cleanHistory
+      .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+      .join('\n');
 
-        const cheapest = [...validQuotes].sort((a, b) => a.total_amount - b.total_amount)[0];
-        const fastest = [...validQuotes].sort((a, b) => a.transit_time_days - b.transit_time_days)[0];
-
-        const outliers = validQuotes.filter(q => q.total_amount > avgPrice * 1.5);
-        const savingPotential = maxPrice > 0 && cheapest ? maxPrice - cheapest.total_amount : 0;
-
-        return {
-            total_quotes: quotes.length,
-            average_price: avgPrice,
-            cheapest_carrier: cheapest?.carrier,
-            cheapest_price: cheapest?.total_amount,
-            fastest_carrier: fastest?.carrier,
-            fastest_days: fastest?.transit_time_days,
-            outlier_warnings: outliers.map(q => q.carrier),
-            saving_potential: savingPotential,
-            currency: cheapest?.currency || 'USD',
-        };
-    }
-
-    /**
-     * Chat with AI about the quotes context (Logistics Co-Pilot).
-     */
-    async chatWithQuotesContext(
-        message: string,
-        history: { role: string; content: string }[],
-        context: any,
-    ): Promise<{ reply: string }> {
-        this.logger.log(`Chat request: "${message.substring(0, 50)}..."`);
-
-        // Use markdown_report as primary context if available
-        let contextSummary: string;
-        if (context?.markdown_report) {
-            contextSummary = `\nDưới đây là báo cáo phân tích báo giá:\n${context.markdown_report}`;
-        } else if (context) {
-            contextSummary = `\nDữ liệu phân tích:\n${JSON.stringify(context, null, 2)}`;
-        } else {
-            contextSummary = '\nChưa có dữ liệu phân tích báo giá.';
-        }
-
-        const cleanHistory = history
-            .filter(m => !m.content.toLowerCase().includes('mock mode') && !m.content.toLowerCase().includes('chế độ thử nghiệm'))
-            .slice(-6);
-
-        const recentHistory = cleanHistory.map(m =>
-            `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`
-        ).join('\n');
-
-        const systemPrompt = `/no_think
+    const systemPrompt = `/no_think
 Bạn là "Logistics Co-Pilot", một trợ lý AI chuyên về so sánh báo giá vận chuyển và đàm phán hợp đồng.
         
 BẮT BUỘC:
@@ -231,12 +297,14 @@ ${recentHistory ? `Lịch sử trò chuyện:\n${recentHistory}\n` : ''}
 Người dùng: ${message}
 Trợ lý (Trả lời bằng tiếng Việt):`;
 
-        try {
-            const reply = await this.aiService.chat(systemPrompt);
-            return { reply: reply.trim() };
-        } catch (error) {
-            this.logger.error('Chat with AI failed:', error);
-            return { reply: 'Xin lỗi, hệ thống AI đang gặp sự cố. Vui lòng thử lại sau.' };
-        }
+    try {
+      const reply = await this.aiService.chat(systemPrompt);
+      return { reply: reply.trim() };
+    } catch (error) {
+      this.logger.error('Chat with AI failed:', error);
+      return {
+        reply: 'Xin lỗi, hệ thống AI đang gặp sự cố. Vui lòng thử lại sau.',
+      };
     }
+  }
 }

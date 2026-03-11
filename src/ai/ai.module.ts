@@ -8,4 +8,4 @@ import { ExtractService } from './extract.service';
   providers: [AiService, OcrService, SpecialTermsService, ExtractService],
   exports: [AiService, OcrService, SpecialTermsService, ExtractService],
 })
-export class AiModule { }
+export class AiModule {}

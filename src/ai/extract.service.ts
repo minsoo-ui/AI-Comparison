@@ -3,12 +3,12 @@ import { AiService } from './ai.service';
 
 @Injectable()
 export class ExtractService {
-    private readonly logger = new Logger(ExtractService.name);
+  private readonly logger = new Logger(ExtractService.name);
 
-    constructor(private aiService: AiService) { }
+  constructor(private aiService: AiService) {}
 
-    async extractData(text: string, schema: any): Promise<any> {
-        const prompt = `
+  async extractData(text: string, schema: any): Promise<any> {
+    const prompt = `
       Extract information from the following shipping quote text based on the provided schema.
       
       CRITICAL INSTRUCTIONS:
@@ -28,21 +28,21 @@ export class ExtractService {
       }
     `;
 
-        try {
-            const response = await this.aiService.chat(prompt);
-            let jsonStr = response.replace(/```json|```/g, '').trim();
+    try {
+      const response = await this.aiService.chat(prompt);
+      let jsonStr = response.replace(/```json|```/g, '').trim();
 
-            // Tìm ngoặc nhọn đầu tiên và cuối cùng để trích xuất JSON thuần tuý, loại bỏ rác đính kèm
-            const firstBrace = jsonStr.indexOf('{');
-            const lastBrace = jsonStr.lastIndexOf('}');
-            if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-                jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
-            }
+      // Tìm ngoặc nhọn đầu tiên và cuối cùng để trích xuất JSON thuần tuý, loại bỏ rác đính kèm
+      const firstBrace = jsonStr.indexOf('{');
+      const lastBrace = jsonStr.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+      }
 
-            return JSON.parse(jsonStr);
-        } catch (error) {
-            this.logger.error('Error extracting data:', error);
-            throw new Error('Failed to extract structured data with traceability');
-        }
+      return JSON.parse(jsonStr);
+    } catch (error) {
+      this.logger.error('Error extracting data:', error);
+      throw new Error('Failed to extract structured data with traceability');
     }
+  }
 }

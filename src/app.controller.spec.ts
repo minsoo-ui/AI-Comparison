@@ -14,7 +14,10 @@ describe('AppController', () => {
       controllers: [AppController],
       providers: [
         AppService,
-        { provide: SpecialTermsService, useValue: { getTermsContent: jest.fn(() => []) } },
+        {
+          provide: SpecialTermsService,
+          useValue: { getTermsContent: jest.fn(() => []) },
+        },
         { provide: ExtractService, useValue: { extractData: jest.fn() } },
         { provide: HscodeService, useValue: { searchHSCode: jest.fn() } },
         { provide: AiService, useValue: { isOnline: jest.fn() } },
