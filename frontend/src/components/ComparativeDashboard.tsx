@@ -748,12 +748,6 @@ const ComparativeDashboard: React.FC = () => {
                                     <div className="typing-dot" style={{ width: '4px', height: '4px', background: 'currentColor', borderRadius: '50%', animation: 'typing 1.4s infinite ease-in-out both', animationDelay: '0.2s' }}></div>
                                     <div className="typing-dot" style={{ width: '4px', height: '4px', background: 'currentColor', borderRadius: '50%', animation: 'typing 1.4s infinite ease-in-out both', animationDelay: '0.4s' }}></div>
                                 </div>
-                                <button 
-                                    onClick={handleStopChat}
-                                    style={{ background: 'rgba(244, 63, 94, 0.1)', border: 'none', color: '#f43f5e', fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', cursor: 'pointer', fontWeight: 600 }}
-                                >
-                                    DỪNG
-                                </button>
                             </div>
                         </div>
                     )}
@@ -770,6 +764,15 @@ const ComparativeDashboard: React.FC = () => {
                         style={{ flex: 1, background: 'transparent', border: 'none', color: 'white', padding: '0.5rem 0.75rem', outline: 'none', fontSize: '0.8125rem' }}
                         disabled={isChatting}
                     />
+                    {isChatting && (
+                        <button
+                            onClick={handleStopChat}
+                            style={{ background: 'rgba(244, 63, 94, 0.1)', color: '#f43f5e', border: '1px solid rgba(244, 63, 94, 0.2)', borderRadius: '1.5rem', padding: '0 0.75rem', fontSize: '0.65rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                            title="Dừng AI trả lời"
+                        >
+                            <XCircle size={12} /> DỪNG
+                        </button>
+                    )}
                     <button
                         onClick={handleSendMessage}
                         disabled={!chatInput.trim() || isChatting}

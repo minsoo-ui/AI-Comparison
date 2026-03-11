@@ -80,10 +80,10 @@ export class ExtractService {
 
     // Extract basic fields using common patterns
     const extractField = (field: string, text: string) => {
-      // Look for "field": "value" or "field": value
-      const regex = new RegExp(`"${field}"\\s*:\\s*["']?([^"',}\\s]+)["']?`, 'i');
+      // Look for "field": "value" or "field": value, allowing spaces for city names
+      const regex = new RegExp(`"${field}"\\s*:\\s*["']?([^"',}]+)["']?`, 'i');
       const match = text.match(regex);
-      return match ? match[1] : null;
+      return match ? match[1].trim() : null;
     };
 
     for (const key of Object.keys(schema)) {

@@ -175,10 +175,11 @@ export class QuoteService {
     // Prepare a summary of extracted data for LLM to use as ground truth for citations
     const groundTruth = structuredQuotes.map((q, i) => {
       return `BÁO GIÁ #${i+1} (${q.sourceFile}): 
-- Carrier: ${q.carrier} (Nguồn trích dẫn: "${q.traceability?.carrier || 'N/A'}")
-- Ocean Freight: ${q.total_amount} ${q.currency} (Nguồn trích dẫn: "${q.traceability?.total_amount || 'N/A'}")
-- Transit Time: ${q.transit_time_days} days (Nguồn trích dẫn: "${q.traceability?.transit_time_days || 'N/A'}")
-- Validity: ${q.valid_until} (Nguồn trích dẫn: "${q.traceability?.valid_until || 'N/A'}")`;
+- Carrier: ${q.carrier} (Trích dẫn: "${q.traceability?.carrier || 'N/A'}")
+- POL/POD: ${q.origin} -> ${q.destination} (Trích dẫn POL: "${q.traceability?.origin || 'N/A'}", POD: "${q.traceability?.destination || 'N/A'}")
+- Ocean Freight: ${q.total_amount} ${q.currency} (Trích dẫn: "${q.traceability?.total_amount || 'N/A'}")
+- Transit Time: ${q.transit_time_days} days (Trích dẫn: "${q.traceability?.transit_time_days || 'N/A'}")
+- Validity: ${q.valid_until} (Trích dẫn: "${q.traceability?.valid_until || 'N/A'}")`;
     }).join('\n\n');
 
     return `/no_think
@@ -223,11 +224,9 @@ Mỗi hàng là một option từ báo giá. Nếu một file có nhiều option
 - So sánh tổng chi phí ước tính
 - Đưa ra lời khuyên cụ thể
 
-### Insight thêm
-- Cung cấp ít nhất 3 lưu ý hoặc mẹo đàm phán cụ thể cho lô hàng này.
-- Cảnh báo về phí ẩn, rủi ro mùa cao điểm, hoặc hiệu lực báo giá sắp hết.
-- Tư vấn về phương thức vận chuyển (FCL vs LCL) dựa trên thể tích/trọng lượng thực tế.
-- PHẢI có nội dung tại đây, KHÔNG được để trống.
+### Insight thêm (BẮT BUỘC có nội dung)
+- Đưa ra 3 lời khuyên thực tế về đàm phán hoặc chọn lựa nhà cung cấp.
+- Lưu ý về validity, các loại phụ phí CAF/PSS, và rủi ro nếu có.
 
 QUAN TRỌNG VỀ TRÍCH DẪN NGUỒN (EVIDENCE TRACEABILITY):
 - Mỗi khi nêu một con số quan trọng (Carrier, Ocean Freight, Transit Time), PHẢI kèm theo trích dẫn nguồn ngay sau đó.
