@@ -107,13 +107,20 @@ export class AiService implements OnModuleInit {
   /**
    * Invoke the LLM with optional tracing callbacks and a safety timeout.
    */
-  async chat(prompt: string, callbacks?: any[]): Promise<string> {
+  async chat(prompt: string, callbacks?: any[], options?: any): Promise<string> {
     const timeout = 60000; // 60s timeout for standard chat
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
 
+    // Dynamic model initialization for each call to support option overrides
+    const callLlm = new ChatOllama({
+      baseUrl: this.ollamaBaseUrl,
+      model: this.modelName,
+      temperature: options?.temperature ?? 0,
+      repeatPenalty: options?.repeatPenalty ?? 1.0, // Default to 1.0 (no penalty) for standard calls
+    });
     try {
-      const response = await this.llm.invoke(prompt, { 
+      const response = await callLlm.invoke(prompt, { 
         callbacks,
         signal: controller.signal 
       });
@@ -150,7 +157,7 @@ export class AiService implements OnModuleInit {
    * Extended chat method for generating long Markdown reports.
    * Uses higher num_predict and a longer timeout (120s).
    */
-  async chatLong(prompt: string, callbacks?: any[]): Promise<string> {
+  async chatLong(prompt: string, callbacks?: any[], options?: any): Promise<string> {
     const timeout = 120000; // 120s timeout for complex reports
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
@@ -159,9 +166,9 @@ export class AiService implements OnModuleInit {
       const longLlm = new ChatOllama({
         baseUrl: this.ollamaBaseUrl,
         model: this.modelName,
-        temperature: 0,
-        numPredict: 4096,
-        repeatPenalty: 1.1,
+        temperature: options?.temperature ?? 0,
+        numPredict: options?.numPredict ?? 4096,
+        repeatPenalty: options?.repeatPenalty ?? 1.1, // Repeat penalty mainly for long reports
       });
       const response = await longLlm.invoke(prompt, { 
         callbacks,

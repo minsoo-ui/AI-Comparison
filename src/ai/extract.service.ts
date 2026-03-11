@@ -45,20 +45,66 @@ export class ExtractService {
     `;
 
     try {
-      const response = await this.aiService.chat(prompt);
+      // Disable repeat_penalty for structured data to avoid breaking JSON syntax
+      const response = await this.aiService.chat(prompt, [], { repeatPenalty: 1.0 });
       let jsonStr = response.replace(/```json|```/g, '').trim();
 
-      // Tìm ngoặc nhọn đầu tiên và cuối cùng để trích xuất JSON thuần tuý, loại bỏ rác đính kèm
       const firstBrace = jsonStr.indexOf('{');
       const lastBrace = jsonStr.lastIndexOf('}');
       if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
         jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
       }
 
-      return JSON.parse(jsonStr);
+      try {
+        return JSON.parse(jsonStr);
+      } catch (parseError) {
+        this.logger.warn('Initial JSON.parse failed, attempting resilient repair...');
+        return this.repairJson(jsonStr, schema);
+      }
     } catch (error) {
       this.logger.error('Error extracting data:', error);
       throw new Error('Failed to extract structured data with traceability');
     }
+  }
+
+  /**
+   * Resiliently extract fields using Regex if JSON parsing fails.
+   */
+  private repairJson(jsonStr: string, schema: any): any {
+    this.logger.log('Executing Regex-based emergency data salvage...');
+    
+    const result: any = {
+      data: {},
+      traceability: {}
+    };
+
+    // Extract basic fields using common patterns
+    const extractField = (field: string, text: string) => {
+      // Look for "field": "value" or "field": value
+      const regex = new RegExp(`"${field}"\\s*:\\s*["']?([^"',}\\s]+)["']?`, 'i');
+      const match = text.match(regex);
+      return match ? match[1] : null;
+    };
+
+    for (const key of Object.keys(schema)) {
+      const val = extractField(key, jsonStr);
+      if (val !== null) {
+        if (schema[key] === 'number') {
+          result.data[key] = parseFloat(val.replace(/[^0-9.]/g, '')) || 0;
+        } else {
+          result.data[key] = val;
+        }
+        result.traceability[key] = "Extracted via Regex Recovery";
+      } else {
+        result.data[key] = schema[key] === 'number' ? 0 : 'N/A';
+      }
+    }
+
+    // Ensure essential logistics fields have defaults if missing
+    if (!result.data.carrier || result.data.carrier === 'N/A') {
+      result.data.carrier = extractField('carrier', jsonStr) || 'N/A';
+    }
+
+    return result;
   }
 }
