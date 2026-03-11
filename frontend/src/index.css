@@ -266,6 +266,44 @@ td {
   background: rgba(244, 63, 94, 0.1);
 }
 
+.card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.copy-button {
+  background: rgba(99, 102, 241, 0.1);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s;
+}
+
+.copy-button:hover {
+  background: var(--brand-primary);
+  color: white;
+  border-color: var(--brand-primary);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.copy-button:active {
+  transform: scale(0.95);
+}
+
+.copy-button.copied {
+  background: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+
 /* ═══ Markdown Report Styles (Dark Theme) ═══ */
 .markdown-report {
   color: var(--text-main);
@@ -296,13 +334,26 @@ td {
 }
 
 .markdown-report h3 {
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   color: #818cf8;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.markdown-report h3::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 1.15rem;
+  background: var(--brand-primary);
+  border-radius: 2px;
 }
 
 .markdown-report h4 {
   font-size: 1rem;
   color: #06b6d4;
+  font-style: italic;
 }
 
 .markdown-report p {
@@ -331,12 +382,14 @@ td {
 /* Tables */
 .markdown-report table {
   width: 100%;
-  border-collapse: collapse;
-  margin: 1.25rem 0;
-  font-size: 0.8125rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 1.5rem 0;
+  font-size: 0.875rem;
   border: 1px solid var(--brand-border);
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
   overflow: hidden;
+  background: rgba(15, 23, 42, 0.3);
 }
 
 .markdown-report thead {

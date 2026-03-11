@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { TrendingUp, FileText, Zap, UploadCloud, XCircle, Timer, AlertCircle, Send, Bot } from 'lucide-react';
+import { TrendingUp, FileText, Zap, UploadCloud, XCircle, Timer, AlertCircle, Send, Bot, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import axios from 'axios';
@@ -62,6 +62,9 @@ const ComparativeDashboard: React.FC = () => {
 
     // Traceability Panel State
     const [tracePanelData, setTracePanelData] = useState<any>(null);
+
+    // UX State
+    const [isCopied, setIsCopied] = useState(false);
 
     // Ping AI health check on mount + every 30s
     useEffect(() => {
@@ -258,6 +261,14 @@ const ComparativeDashboard: React.FC = () => {
         } finally {
             setIsChatting(false);
         }
+    };
+
+    const copyToClipboard = () => {
+        if (!result?.markdown_report) return;
+        navigator.clipboard.writeText(result.markdown_report).then(() => {
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        });
     };
 
     const formatTime = (seconds: number) => {
@@ -472,23 +483,28 @@ const ComparativeDashboard: React.FC = () => {
                             <FileText size={20} style={{ color: '#818cf8' }} />
                             Báo cáo Phân tích Chuyên gia
                         </h3>
-                        {result.file_classification && (
-                            <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem' }}>
-                                <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '0.2rem 0.6rem', borderRadius: '1rem' }}>
-                                    {result.file_classification.quotes?.length || 0} báo giá
-                                </span>
-                                {result.file_classification.rfq > 0 && (
-                                    <span style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', padding: '0.2rem 0.6rem', borderRadius: '1rem' }}>
-                                        {result.file_classification.rfq} yêu cầu hỏi cước
+                        <div className="card-header-actions">
+                            <button
+                                onClick={copyToClipboard}
+                                className={`copy-button ${isCopied ? 'copied' : ''}`}
+                                title="Sao chép báo cáo"
+                            >
+                                {isCopied ? <Check size={14} /> : <Copy size={14} />}
+                                {isCopied ? 'Đã sao chép' : 'Sao chép Báo cáo'}
+                            </button>
+                            {result.file_classification && (
+                                <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem' }}>
+                                    <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '0.2rem 0.6rem', borderRadius: '1rem' }}>
+                                        {result.file_classification.quotes?.length || 0} báo giá
                                     </span>
-                                )}
-                                {result.file_classification.common_terms > 0 && (
-                                    <span style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', padding: '0.2rem 0.6rem', borderRadius: '1rem' }}>
-                                        {result.file_classification.common_terms} thuật ngữ
-                                    </span>
-                                )}
-                            </div>
-                        )}
+                                    {result.file_classification.rfq > 0 && (
+                                        <span style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', padding: '0.2rem 0.6rem', borderRadius: '1rem' }}>
+                                            {result.file_classification.rfq} yêu cầu hỏi cước
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {/* Markdown Report */}
