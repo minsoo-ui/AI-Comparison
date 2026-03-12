@@ -8,7 +8,7 @@ import TraceabilityModal from './TraceabilityModal';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : `http://${window.location.hostname}:3000`;
 
-const ComparativeDashboard: React.FC = () => {
+const ComparativeDashboard: React.FC<{ setActiveTab?: (tab: string) => void }> = ({ setActiveTab }) => {
     const [files, setFiles] = useState<File[]>([]);
     const [comparing, setComparing] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -34,7 +34,6 @@ const ComparativeDashboard: React.FC = () => {
         return [];
     });
     const [errorMsg, setErrorMsg] = useState('');
-    const [isConfirmingClear, setIsConfirmingClear] = useState(false);
 
     // AI Chat State
     const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'ai', content: string }[]>(() => {
@@ -251,31 +250,6 @@ const ComparativeDashboard: React.FC = () => {
             abortControllerRef.current = null;
         }
     };
-
-    const handleClearData = () => {
-        if (!isConfirmingClear) {
-            setIsConfirmingClear(true);
-            setTimeout(() => {
-                setIsConfirmingClear(false);
-            }, 3000); // Tự hủy trạng thái xác nhận sau 3 giây
-            return;
-        }
-
-        console.log('[Dashboard] Clearing localStorage and state...');
-        localStorage.removeItem('comparative_result');
-        localStorage.removeItem('comparative_files');
-        localStorage.removeItem('comparative_chat');
-        setResult(null);
-        setFiles([]);
-        setSavedFileNames([]);
-        setChatMessages([{ role: 'ai', content: 'Xin chào! Tôi là Logistics Co-Pilot. Bạn cần hỏi gì về báo giá?' }]);
-        setUploadProgress(0);
-        setAiProgress(0);
-        setAiTime(0);
-        setIsConfirmingClear(false);
-        console.log('[Dashboard] Clear complete');
-    };
-
     const handleCancel = () => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
@@ -309,6 +283,31 @@ const ComparativeDashboard: React.FC = () => {
         const m = Math.floor(seconds / 60).toString().padStart(2, '0');
         const s = (seconds % 60).toString().padStart(2, '0');
         return `${m}:${s}`;
+    };
+
+    const handleSaveToHistory = () => {
+        if (!result) return;
+
+        // Build a history entry from the current analysis result
+        const historyEntry = {
+            id: Date.now(),
+            date: new Date().toLocaleString('vi-VN'),
+            files: savedFileNames.length > 0 ? savedFileNames : ['(Không rõ tên file)'],
+            status: 'Completed',
+            summary: result,
+        };
+
+        try {
+            const existing = JSON.parse(localStorage.getItem('quote_history') || '[]');
+            const updated = [historyEntry, ...existing].slice(0, 50); // Giữ tối đa 50 phiên
+            localStorage.setItem('quote_history', JSON.stringify(updated));
+            console.log('[Dashboard] Saved to history:', historyEntry.id);
+        } catch (e) {
+            console.warn('[Dashboard] Failed to save history:', e);
+        }
+
+        // Navigate to history tab
+        if (setActiveTab) setActiveTab('history');
     };
 
     return (
@@ -389,25 +388,26 @@ const ComparativeDashboard: React.FC = () => {
                             </button>
                             {result && (
                                 <button
-                                    onClick={handleClearData}
+                                    onClick={handleSaveToHistory}
                                     style={{
-                                        padding: '0.5rem',
+                                        padding: '0.8rem',
                                         width: '100%',
-                                        background: isConfirmingClear ? 'rgba(244, 63, 94, 0.1)' : 'transparent',
-                                        color: isConfirmingClear ? '#f43f5e' : 'var(--text-dim)',
-                                        border: isConfirmingClear ? '1px solid #f43f5e' : '1px solid var(--brand-border)',
+                                        background: 'rgba(99, 102, 241, 0.1)',
+                                        color: '#6366f1',
+                                        border: '1px solid #6366f1',
                                         borderRadius: '0.5rem',
-                                        fontSize: '0.8125rem',
+                                        fontSize: '0.875rem',
                                         cursor: 'pointer',
                                         transition: 'all 0.2s',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '0.4rem',
-                                        fontWeight: isConfirmingClear ? 'bold' : 'normal'
+                                        justifyContent: 'center',
+                                        gap: '0.5rem',
+                                        fontWeight: 600
                                     }}
-                                    className="hover:border-rose-500 hover:text-rose-500"
+                                    className="hover:bg-indigo-50"
                                 >
-                                    <XCircle size={14} /> {isConfirmingClear ? 'Nhấn lần nữa để Xóa' : 'Xóa Kết quả & Cache'}
+                                    <FileText size={18} /> Lưu vào Lịch sử & Xem
                                 </button>
                             )}
                         </div>

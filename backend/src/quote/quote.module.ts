@@ -8,14 +8,14 @@ import { UploadModule } from '../upload/upload.module';
 import { AiModule } from '../ai/ai.module';
 
 @Module({
-    imports: [
-        UploadModule,
-        AiModule,
-        BullModule.registerQueue({
-            name: 'quote-extraction',
-        }),
-    ],
-    controllers: [QuoteController],
-    providers: [QuoteService, QuoteProcessor, QuoteGateway],
+  imports: [
+    UploadModule,
+    AiModule,
+    BullModule.registerQueue({
+      name: 'quote-extraction',
+    }),
+  ],
+  controllers: [QuoteController],
+  providers: [QuoteService, QuoteProcessor, QuoteGateway],
 })
-export class QuoteModule { }
+export class QuoteModule {}

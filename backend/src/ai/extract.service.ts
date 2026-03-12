@@ -1,52 +1,120 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AiService } from './ai.service';
+import { z } from 'zod';
+
+const QuoteValidationSchema = z.object({
+  data: z
+    .object({
+      agent_name: z
+        .string()
+        .describe(
+          "Tên của đại lý forwarder, logistics, hoặc carrier ban hành báo giá (VD: DHL, Maersk). Trả về 'N/A' nếu không thấy.",
+        ),
+      carrier: z
+        .string()
+        .describe(
+          "Tên hãng tàu hoặc hãng vận chuyển thực tế (VD: Evergreen, CMA CGM). Trả về 'N/A' nếu không thấy.",
+        ),
+      origin: z
+        .string()
+        .describe(
+          "Cảng đi (Port of Loading - POL). Trả về 'N/A' nếu không thấy.",
+        ),
+      destination: z
+        .string()
+        .describe(
+          "Cảng đến (Port of Discharge - POD). Trả về 'N/A' nếu không thấy.",
+        ),
+      total_amount: z
+        .number()
+        .describe(
+          'Tổng chi phí (final price) cuối cùng. Trả về 0 nếu không chắc chắn.',
+        ),
+      currency: z
+        .string()
+        .describe(
+          "Đơn vị tiền tệ chính sách (VD: USD, VND, EUR). Trả về 'N/A' nếu không thấy.",
+        ),
+      transit_time_days: z
+        .number()
+        .describe(
+          'Thời gian vận chuyển tính bằng ngày (transit time). Trả về 0 nếu không có.',
+        ),
+      valid_until: z
+        .string()
+        .describe(
+          "Ngày hết hạn hoặc thời gian báo giá có hiệu lực (Validity). Trả về 'N/A' nếu không thấy.",
+        ),
+      chargeable_rt: z
+        .number()
+        .describe(
+          'Tổng số khối (CBM/RT) đối với hàng LCL. Trả về 0 nếu là FCL hoặc không có.',
+        ),
+      of_rate_per_rt: z
+        .number()
+        .describe(
+          'Ocean freight (Cước biển) trên mỗi RT/CBM đối với hàng LCL. Trả về 0 nếu không có.',
+        ),
+    })
+    .describe(
+      'Dữ liệu trích xuất phẳng chứa thông tin chung về báo giá FCL/LCL.',
+    ),
+  traceability: z
+    .record(z.string(), z.string())
+    .describe(
+      "Mapping từ tên trường (VD: 'total_amount') tới ĐOẠN TEXT GỐC TRÍCH XUẤT ĐƯỢC để kiểm chứng hệ thống.",
+    ),
+});
 
 @Injectable()
 export class ExtractService {
-    private readonly logger = new Logger(ExtractService.name);
+  private readonly logger = new Logger(ExtractService.name);
 
-    constructor(private aiService: AiService) { }
+  constructor(private aiService: AiService) {}
 
-    async extractData(text: string, schema: any): Promise<any> {
-        const prompt = `
-      Extract information from the following shipping quote text based on the provided schema.
+  async extractData(text: string, schema: any): Promise<any> {
+    const prompt = `
+      Extract information from the following shipping quote text based on the provided schema structure.
       
       CRITICAL INSTRUCTIONS:
       1. IGNORE metadata such as "Microsoft: Print to PDF", printer names, or PDF software.
-      2. 'carrier' MUST be the name of the logistics company (e.g., DHL, FedEx, Gemadept, Maersk, v.v.). Nếu KHÔNG TÌM THẤY tên hãng cụ thể, trả về "N/A".
-      3. 'total_amount' MUST be the final price found in the quote. If no price is found, do not hallucinate; return 0.
-      4. For each extracted field, provide the exact snippet from the text as 'source_snippet' in the 'traceability' object.
-      5. ZERO HALLUCINATION POLICY: DO NOT invent, guess, or make up any data. Only extract what is explicitly written in the Text.
+      2. 'agent_name' & 'carrier' MUST be the name of the logistics company or shipping line. Nếu KHÔNG TÌM THẤY tên cụ thể, trả về "N/A".
+      3. 'total_amount' MUST be the final explicit price found in the quote. If no price is found, DO NOT hallucinate; return 0.
+      4. ZERO HALLUCINATION POLICY: DO NOT invent, guess, or make up any data. Only extract what is explicitly written in the Text.
+      5. TRACEABILITY: For extracted fields, copy the EXACT snippet from the source text as the value in the traceability dictionary.
       
-      Text: 
+      Shipping Quote Text: 
       """
       ${text}
       """
-      
-      Schema: ${JSON.stringify(schema)}
-      
-      Return as JSON with format:
-      {
-        "data": { ...extracted fields... },
-        "traceability": { "field_name": "original text snippet", ... }
-      }
     `;
 
-        try {
-            const response = await this.aiService.chat(prompt);
-            let jsonStr = response.replace(/```json|```/g, '').trim();
+    try {
+      const result = await this.aiService.chatWithStructuredOutput(
+        prompt,
+        QuoteValidationSchema,
+      );
 
-            // Tìm ngoặc nhọn đầu tiên và cuối cùng để trích xuất JSON thuần tuý, loại bỏ rác đính kèm
-            const firstBrace = jsonStr.indexOf('{');
-            const lastBrace = jsonStr.lastIndexOf('}');
-            if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-                jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
-            }
+      if (!result) {
+        throw new Error(
+          'Structured output returned null or rejected construction.',
+        );
+      }
 
-            return JSON.parse(jsonStr);
-        } catch (error) {
-            this.logger.error('Error extracting data:', error);
-            throw new Error('Failed to extract structured data with traceability');
-        }
+      return result;
+    } catch (error) {
+      this.logger.error('Error extracting data:', error);
+      // Theo như yêu cầu của ứng dụng, khi ExtractService lỗi, báo giá vẫn cần render map empty
+      return {
+        data: {
+          carrier: 'Không xác định',
+          origin: 'N/A',
+          destination: 'N/A',
+          total_amount: 0,
+          currency: 'USD',
+        },
+        traceability: {},
+      };
     }
+  }
 }

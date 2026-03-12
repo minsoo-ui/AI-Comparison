@@ -13,7 +13,9 @@ describe('HscodeService', () => {
           provide: AiService,
           useValue: {
             getQdrantClient: jest.fn(() => ({
-              getCollections: jest.fn(() => Promise.resolve({ collections: [] })),
+              getCollections: jest.fn(() =>
+                Promise.resolve({ collections: [] }),
+              ),
               createCollection: jest.fn(() => Promise.resolve()),
               upsert: jest.fn(() => Promise.resolve()),
               search: jest.fn(() => Promise.resolve([])),

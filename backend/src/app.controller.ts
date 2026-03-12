@@ -18,7 +18,7 @@ export class AppController {
     private readonly extractService: ExtractService,
     private readonly hscodeService: HscodeService,
     private readonly aiService: AiService,
-  ) { }
+  ) {}
 
   @Get()
   getHello(): string {
@@ -47,9 +47,9 @@ export class AppController {
           size: (stats.size / 1024).toFixed(1) + ' KB',
           updatedAt: stats.mtime.toLocaleString(), // Actual modification time
           status: 'Active',
-          description: 'Local knowledge base file.' // Can attach more metadata if mapped in a DB
+          description: 'Local knowledge base file.', // Can attach more metadata if mapped in a DB
         };
-      })
+      }),
     );
 
     return fileStats;
@@ -59,7 +59,7 @@ export class AppController {
   async getTrashFiles() {
     const trashPath = path.join(process.cwd(), 'data', '.trash');
     await fs.ensureDir(trashPath);
-    let files = await fs.readdir(trashPath);
+    const files = await fs.readdir(trashPath);
 
     const now = Date.now();
     const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
@@ -81,7 +81,7 @@ export class AppController {
         name: filename,
         size: (stats.size / 1024).toFixed(1) + ' KB',
         deletedAt: stats.mtime.toLocaleString(), // using mtime as deleted time since fs.move updates it
-        mtimeMs: stats.mtimeMs
+        mtimeMs: stats.mtimeMs,
       });
     }
 
@@ -115,9 +115,12 @@ export class AppController {
   @Get('open-database-folder')
   openDatabaseFolder() {
     const folderPath = path.join(process.cwd(), 'data', 'special_terms');
-    const command = process.platform === 'win32' ? `explorer "${folderPath}"` :
-      process.platform === 'darwin' ? `open "${folderPath}"` :
-        `xdg-open "${folderPath}"`;
+    const command =
+      process.platform === 'win32'
+        ? `explorer "${folderPath}"`
+        : process.platform === 'darwin'
+          ? `open "${folderPath}"`
+          : `xdg-open "${folderPath}"`;
 
     exec(command, (error) => {
       if (error) {
@@ -133,13 +136,16 @@ export class AppController {
   async testFoundation() {
     this.logger.log('Starting Foundation Integration Test (Task 2.8)...');
     let termsResult: any = { status: 'Unknown', length: 0 };
-    let extractionResult: any = { status: 'Skipped', data: null };
-    let hscodeResult: any = { status: 'Skipped', data: null };
+    const extractionResult: any = { status: 'Skipped', data: null };
+    const hscodeResult: any = { status: 'Skipped', data: null };
 
     // 1. Check Special Terms
     try {
       const terms = this.specialTermsService.getTermsContent();
-      termsResult = { status: terms.length > 0 ? 'OK' : 'Empty', length: terms.length };
+      termsResult = {
+        status: terms.length > 0 ? 'OK' : 'Empty',
+        length: terms.length,
+      };
     } catch (e) {
       this.logger.error('SpecialTerms test failed:', e);
       termsResult.status = 'Error: ' + e.message;
@@ -147,14 +153,18 @@ export class AppController {
 
     // 2. Test ExtractService (LangExtract) with mock logic in AiService
     try {
-      const mockOcrText = 'Quote from FedEx. Total price: 500 USD for 50kg of electronics.';
+      const mockOcrText =
+        'Quote from FedEx. Total price: 500 USD for 50kg of electronics.';
       const schema = {
         company: 'string',
         total_price: 'number',
         weight: 'number',
         item: 'string',
       };
-      extractionResult.data = await this.extractService.extractData(mockOcrText, schema);
+      extractionResult.data = await this.extractService.extractData(
+        mockOcrText,
+        schema,
+      );
       extractionResult.status = 'OK';
     } catch (e) {
       this.logger.error('Extraction test failed:', e);

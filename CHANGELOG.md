@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026-03-12] v0.8.0 - AI Extraction Optimization & Quote History
+### Added
+- **Term Preprocessor (Phase 6)**: Logistics acronym dictionary auto-expands THC, CFS, BAF, D/O, LCC, AMS... before LLM, significantly reducing hallucination of cost types.
+- **Zod Structured Extraction (Phase 7)**: Replaced manual JSON parsing with `LangChain .withStructuredOutput(QuoteValidationSchema)` + Zod schema. Extraction is now type-safe and schema-enforced.
+- **LLM Parameter Tuning**: Set `temperature:0` + `numPredict:512` for deterministic and concise extraction with Qwen3:0.8b as the target model.
+- **Quote History**: Clicking "Lưu vào Lịch sử & Xem" on the Dashboard saves the full analysis result to localStorage (`quote_history`) and navigates to the History tab. Supports up to 50 sessions.
+- **RecentQuotes Redesign**: History tab now reads real data from localStorage with empty-state UI, table view, and expandable detail panel.
+- **Bidirectional Tab Navigation**: "Phân tích Mới" button on History tab links back to Dashboard; Dashboard → History link is fully functional.
+
+### Changed
+- **Docker Rebuild**: Both frontend and backend containers rebuilt to include new Zod dependency and all source changes.
+- **ComparativeDashboard Props**: Added `setActiveTab` prop for cross-tab navigation.
+
 ## [2026-03-12]
 ### Added
 - **Security Enhancements**: Integrated Helmet for HTTP headers and GlobalValidationPipe.

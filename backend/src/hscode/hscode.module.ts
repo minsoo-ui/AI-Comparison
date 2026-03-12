@@ -9,4 +9,4 @@ import { HscodeController } from './hscode.controller';
   providers: [HscodeService],
   exports: [HscodeService],
 })
-export class HscodeModule { }
+export class HscodeModule {}

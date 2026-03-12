@@ -48,9 +48,9 @@ function App() {
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           {/* Keep ComparativeDashboard always mounted - use CSS to show/hide */}
           <div style={{ display: activeTab === 'dashboard' ? 'block' : 'none' }}>
-            <ComparativeDashboard />
+            <ComparativeDashboard setActiveTab={setActiveTab} />
           </div>
-          {activeTab === 'history' && <RecentQuotes />}
+          {activeTab === 'history' && <RecentQuotes setActiveTab={setActiveTab} />}
           {activeTab === 'hscode' && <HSCodeSearch />}
           {activeTab === 'database' && <Database />}
         </div>
