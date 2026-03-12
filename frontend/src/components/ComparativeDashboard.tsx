@@ -1,8 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { TrendingUp, FileText, Zap, UploadCloud, XCircle, Timer, AlertCircle, Send, Bot } from 'lucide-react';
+import { TrendingUp, FileText, Zap, UploadCloud, XCircle, Timer, AlertCircle, Send, Bot, CheckCircle2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import axios from 'axios';
+import { io, Socket } from 'socket.io-client';
+import TraceabilityModal from './TraceabilityModal';
+
+const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : `http://${window.location.hostname}:3000`;
 
 const ComparativeDashboard: React.FC = () => {
     const [files, setFiles] = useState<File[]>([]);
@@ -60,14 +64,48 @@ const ComparativeDashboard: React.FC = () => {
     // AI Health Status
     const [aiStatus, setAiStatus] = useState<{ online: boolean; model: string }>({ online: false, model: 'unknown' });
 
-    // Traceability Panel State
-    const [tracePanelData, setTracePanelData] = useState<any>(null);
+    // Traceability Modal State
+    const [selectedTraceData, setSelectedTraceData] = useState<any>(null);
+    const [isTraceModalOpen, setIsTraceModalOpen] = useState(false);
+
+    // Job Stats Real-time
+    const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+    const [jobStatus, setJobStatus] = useState<string>('idle'); // idle, uploading, queued, active, completed, failed
+    const socketRef = useRef<Socket | null>(null);
+
+    // Setup Socket.io
+    useEffect(() => {
+        const socket = io(API_BASE);
+        socketRef.current = socket;
+
+        socket.on('connect', () => console.log('[Socket] Connected to backend'));
+        socket.on('job_status', (data) => {
+            console.log('[Socket] Job Update:', data);
+            if (data.jobId === currentJobId) {
+                setJobStatus(data.status);
+                if (data.progress) setAiProgress(data.progress);
+                if (data.status === 'completed' && data.result) {
+                    setResult(data.result);
+                    setComparing(false);
+                }
+            }
+        });
+
+        // Join the room for the current job to receive updates
+        if (currentJobId) {
+            socket.emit('join-job', { jobId: currentJobId });
+        }
+
+        return () => {
+            socket.disconnect();
+        };
+    }, [currentJobId]);
 
     // Ping AI health check on mount + every 30s
     useEffect(() => {
         const checkHealth = async () => {
             try {
-                const res = await axios.get('http://localhost:3001/health/ai', { timeout: 5000 });
+                const res = await axios.get(`${API_BASE}/health/ai`, { timeout: 5000 });
                 setAiStatus(res.data);
             } catch {
                 setAiStatus({ online: false, model: 'unreachable' });
@@ -138,7 +176,7 @@ const ComparativeDashboard: React.FC = () => {
     };
 
     const removeFile = (index: number) => {
-        setFiles(prev => prev.filter((_, i) => i !== index));
+        setFiles(prev => prev.filter((_: File, i: number) => i !== index));
     };
 
     const startCompare = async () => {
@@ -168,10 +206,11 @@ const ComparativeDashboard: React.FC = () => {
 
         try {
             // 1. Upload Files
+            setJobStatus('uploading');
             const formData = new FormData();
             files.forEach(file => formData.append('files', file));
 
-            const uploadRes = await axios.post('http://localhost:3001/upload', formData, {
+            const uploadRes = await axios.post(`${API_BASE}/upload`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
                 onUploadProgress: (progressEvent) => {
                     const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
@@ -182,16 +221,23 @@ const ComparativeDashboard: React.FC = () => {
 
             const filePaths = uploadRes.data.paths;
 
-            // 2. Analyze
-            const response = await axios.post('http://localhost:3001/quote/compare', {
+            // 2. Analyze (Now Async)
+            setJobStatus('queued');
+            const response = await axios.post(`${API_BASE}/quote/compare`, {
                 filePaths
             }, {
                 signal: abortController.signal
             });
 
-            setAiProgress(100);
-            if (timerRef.current) clearInterval(timerRef.current);
-            setResult(response.data);
+            if (response.data.jobId) {
+                setCurrentJobId(response.data.jobId);
+                // The rest will be handled by Socket.io
+            } else {
+                // Fallback if not async
+                setAiProgress(100);
+                setResult(response.data);
+                setComparing(false);
+            }
 
         } catch (error: any) {
             if (axios.isCancel(error)) {
@@ -200,9 +246,8 @@ const ComparativeDashboard: React.FC = () => {
                 console.error('Comparison failed', error);
                 setErrorMsg('Xảy ra lỗi trong quá trình phân tích. Vui lòng thử lại.');
             }
-        } finally {
-            if (timerRef.current) clearInterval(timerRef.current);
             setComparing(false);
+        } finally {
             abortControllerRef.current = null;
         }
     };
@@ -246,7 +291,7 @@ const ComparativeDashboard: React.FC = () => {
         setIsChatting(true);
 
         try {
-            const response = await axios.post('http://localhost:3001/quote/chat', {
+            const response = await axios.post(`${API_BASE}/quote/chat`, {
                 message: userMsg,
                 history: chatMessages.slice(-6),
                 context: result || null,
@@ -357,7 +402,6 @@ const ComparativeDashboard: React.FC = () => {
                                         transition: 'all 0.2s',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        justifyContent: 'center',
                                         gap: '0.4rem',
                                         fontWeight: isConfirmingClear ? 'bold' : 'normal'
                                     }}
@@ -382,35 +426,50 @@ const ComparativeDashboard: React.FC = () => {
                             {/* Upload Progress */}
                             <div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
-                                    <span style={{ color: 'var(--text-dim)' }}>Uploading Files</span>
-                                    <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{uploadProgress}%</span>
+                                    <span style={{ color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                        {uploadProgress < 100 ? <Timer size={12} /> : <CheckCircle2 size={12} style={{ color: '#10b981' }} />}
+                                        Tải file lên hệ thống
+                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.2)', color: '#818cf8', fontWeight: 600 }}>{jobStatus.toUpperCase()}</span>
+                                        <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{uploadProgress}%</span>
+                                    </div>
                                 </div>
                                 <div style={{ height: '4px', background: 'var(--brand-dark)', borderRadius: '2px', overflow: 'hidden' }}>
                                     <div style={{ width: `${uploadProgress}%`, height: '100%', background: 'var(--brand-secondary)', transition: 'width 0.3s' }}></div>
                                 </div>
                             </div>
 
-                            {/* AI Progress */}
-                            <div style={{ opacity: uploadProgress === 100 ? 1 : 0.4 }}>
+                            {/* AI Processing Steps */}
+                            <div style={{ opacity: uploadProgress === 100 ? 1 : 0.4, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem', alignItems: 'center' }}>
                                     <span style={{ color: 'var(--brand-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                        <Zap size={12} /> AI Processing
+                                        <Zap size={12} /> Đang xử lý AI (Map-Reduce)
                                     </span>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                        <span style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>
-                                            {Math.round(aiProgress)}%
-                                        </span>
-                                        <span style={{ color: 'var(--text-main)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                            <Timer size={12} style={{ color: 'var(--text-dim)' }} /> {formatTime(aiTime)}
-                                        </span>
+                                    <span style={{ color: 'var(--text-main)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                        <Timer size={12} style={{ color: 'var(--text-dim)' }} /> {formatTime(aiTime)}
+                                    </span>
+                                </div>
+
+                                {/* Step Indicator */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem' }}>
+                                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: aiProgress > 10 ? '#10b981' : 'var(--brand-border)', border: aiProgress > 0 && aiProgress <= 10 ? '2px solid #818cf8' : 'none' }}></div>
+                                        <span style={{ color: aiProgress > 10 ? '#10b981' : 'var(--text-dim)' }}>OCR & Nhận diện layout</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem' }}>
+                                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: aiProgress > 40 ? '#10b981' : 'var(--brand-border)', border: aiProgress > 10 && aiProgress <= 40 ? '2px solid #818cf8' : 'none' }}></div>
+                                        <span style={{ color: aiProgress > 40 ? '#10b981' : 'var(--text-dim)' }}>Trích xuất Map (từng file)</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem' }}>
+                                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: aiProgress > 80 ? '#10b981' : 'var(--brand-border)', border: aiProgress > 40 && aiProgress <= 80 ? '2px solid #818cf8' : 'none' }}></div>
+                                        <span style={{ color: aiProgress > 80 ? '#10b981' : 'var(--text-dim)' }}>Tổng hợp Reduce (Expert Report)</span>
                                     </div>
                                 </div>
-                                <div style={{ height: '4px', background: 'var(--brand-dark)', borderRadius: '2px', overflow: 'hidden' }}>
+
+                                <div style={{ height: '4px', background: 'var(--brand-dark)', borderRadius: '2px', overflow: 'hidden', marginTop: '0.25rem' }}>
                                     <div style={{ width: `${uploadProgress === 100 ? aiProgress : 0}%`, height: '100%', background: 'linear-gradient(90deg, #6366f1, #06b6d4)', transition: 'width 0.5s' }}></div>
                                 </div>
-                                <p style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '0.5rem', fontStyle: 'italic', textAlign: 'center' }}>
-                                    {aiProgress === 100 ? 'Đã hoàn tất phân tích!' : aiProgress > 80 ? 'Đang tổng hợp thông tin...' : aiProgress > 30 ? 'Đang phân tích điều khoản...' : 'Đang trích xuất dữ liệu...'}
-                                </p>
                             </div>
                         </div>
                     )}
@@ -427,6 +486,21 @@ const ComparativeDashboard: React.FC = () => {
                         <div>
                             <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>Lựa chọn Rẻ nhất</p>
                             <p style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{result.summary.cheapest_carrier || 'N/A'}</p>
+                            <button 
+                                onClick={() => {
+                                    setSelectedTraceData({
+                                        field: 'Cheapest Carrier',
+                                        value: result.summary.cheapest_carrier,
+                                        carrier: result.summary.cheapest_carrier,
+                                        sourceFile: 'Generated from consolidated report',
+                                        confidence: 0.95
+                                    });
+                                    setIsTraceModalOpen(true);
+                                }}
+                                style={{ background: 'none', border: 'none', color: '#818cf8', fontSize: '0.7rem', cursor: 'pointer', padding: 0, marginTop: '0.25rem', textDecoration: 'underline' }}
+                            >
+                                Xem nguồn
+                            </button>
                         </div>
                     </div>
                     <div className="card stat-card" style={{ borderLeft: '4px solid #8b5cf6' }}>
@@ -447,6 +521,21 @@ const ComparativeDashboard: React.FC = () => {
                         <div>
                             <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>Vận chuyển Nhanh nhất</p>
                             <p style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{result.summary.fastest_days || '?'} Ngày</p>
+                            <button 
+                                onClick={() => {
+                                    setSelectedTraceData({
+                                        field: 'Fastest Transit Time',
+                                        value: `${result.summary.fastest_days} Days`,
+                                        carrier: 'Various',
+                                        sourceFile: 'Aggregated Analysis',
+                                        confidence: 0.9
+                                    });
+                                    setIsTraceModalOpen(true);
+                                }}
+                                style={{ background: 'none', border: 'none', color: '#818cf8', fontSize: '0.7rem', cursor: 'pointer', padding: 0, marginTop: '0.25rem', textDecoration: 'underline' }}
+                            >
+                                Xem nguồn
+                            </button>
                         </div>
                     </div>
                     {result.summary.outlier_warnings && result.summary.outlier_warnings.length > 0 && (
@@ -491,9 +580,37 @@ const ComparativeDashboard: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Markdown Report */}
+                    {/* Markdown Report with Traceability Hooks */}
                     <div className="markdown-report">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        <ReactMarkdown 
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                                strong: ({node, ...props}) => {
+                                    // Thử nghiệm: Nếu AI wrap giá trị trong strong, ta cho phép click để xem trace
+                                    return (
+                                        <strong 
+                                            {...props} 
+                                            onClick={() => {
+                                                if (result.traceability_map && result.traceability_map[props.children as string]) {
+                                                    const trace = result.traceability_map[props.children as string];
+                                                    setSelectedTraceData({
+                                                        field: props.children as string,
+                                                        value: props.children as string,
+                                                        carrier: trace.carrier,
+                                                        sourceFile: trace.sourceFile,
+                                                        filename: trace.filename,
+                                                        bbox: trace.bbox,
+                                                        confidence: trace.confidence || 0.9
+                                                    });
+                                                    setIsTraceModalOpen(true);
+                                                }
+                                            }}
+                                            style={{ cursor: result.traceability_map && result.traceability_map[props.children as string] ? 'help' : 'inherit', color: result.traceability_map && result.traceability_map[props.children as string] ? '#818cf8' : 'inherit' }}
+                                        />
+                                    );
+                                }
+                            }}
+                        >
                             {result.markdown_report || 'Không có báo cáo phân tích.'}
                         </ReactMarkdown>
                     </div>
@@ -570,49 +687,12 @@ const ComparativeDashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* TRACEABILITY SIDE PANEL (DRAWER) */}
-            {tracePanelData && (
-                <div style={{
-                    position: 'fixed', top: 0, right: 0, width: '400px', height: '100vh',
-                    background: '#0f172a', borderLeft: '1px solid var(--brand-border)',
-                    boxShadow: '-10px 0 30px rgba(0,0,0,0.5)', zIndex: 1000,
-                    display: 'flex', flexDirection: 'column',
-                    animation: 'slideInRight 0.3s ease-out'
-                }}>
-                    <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--brand-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>Truy xuất Nguồn dữ liệu</h3>
-                        <button onClick={() => setTracePanelData(null)} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer' }}>
-                            <XCircle size={24} />
-                        </button>
-                    </div>
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
-                        <div style={{ marginBottom: '1.5rem' }}>
-                            <p style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Source Carrier</p>
-                            <p style={{ fontSize: '1.125rem', fontWeight: 600 }}>{tracePanelData.carrier}</p>
-                        </div>
-                        <div style={{ marginBottom: '1.5rem' }}>
-                            <p style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Source File</p>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--brand-dark)', padding: '0.75rem', borderRadius: '0.5rem' }}>
-                                <FileText size={18} style={{ color: 'var(--brand-primary)' }} />
-                                <span style={{ fontSize: '0.875rem', color: 'var(--text-dim)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tracePanelData.sourceFile}</span>
-                            </div>
-                        </div>
-                        <div>
-                            <p style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Extracted Metadata</p>
-                            <div style={{ background: 'rgba(30, 41, 59, 0.5)', borderRadius: '0.75rem', padding: '1rem', fontSize: '0.8125rem', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                <pre style={{ whiteSpace: 'pre-wrap', color: '#818cf8', fontFamily: 'monospace' }}>
-                                    {JSON.stringify(tracePanelData.traceability || {}, null, 2)}
-                                </pre>
-                            </div>
-                        </div>
-                    </div>
-                    <div style={{ padding: '1.5rem', borderTop: '1px solid var(--brand-border)', background: 'rgba(15, 23, 42, 0.5)' }}>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>
-                            Thông tin trích xuất bằng AI OCR (PaddleOCR). Để có kết quả chính xác nhất, vui lòng đối chiếu trực tiếp với file PDF gốc.
-                        </p>
-                    </div>
-                </div>
-            )}
+            {/* TRACEABILITY MODAL */}
+            <TraceabilityModal 
+                isOpen={isTraceModalOpen}
+                onClose={() => setIsTraceModalOpen(false)}
+                data={selectedTraceData}
+            />
         </div>
     );
 };
